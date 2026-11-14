@@ -6,15 +6,16 @@
 .focus{position:relative;display:inline-block;background:#FFFFFF;border-radius:14px;padding:8px 14px;font-size:15px;font-weight:600;margin-top:10px}
 .focus b{color:#8B5E3C}
 .checked{position:relative;background:#FFFFFF;border-radius:999px;padding:8px 14px;font-size:14px;font-weight:800;color:#5E3B22;margin-right:90px}
-.kpi .lab{font-size:14px;font-weight:600;color:#565B62}
-.kpi .val{font-size:28px;font-weight:600;letter-spacing:-.3px;white-space:nowrap;margin-top:4px}
-.kpi .del{font-size:13px;font-weight:600;color:#8B5E3C;white-space:nowrap}
-
-
-/* dashboard grid */
-.dash{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:6px}
-.dcard{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:24px;padding:20px 22px 14px}
-.dcard.wide{grid-column:1 / -1}
-.dtitle{font-size:20px;font-weight:800}
-.dsub{font-size:14.5px;color:#565B62;margin:2px 0 10px}
-@media (max-width:1100px){.dash{grid-template-columns:1fr}}
+/* four big KPI cards */
+.kgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:6px}
+.kbig{background:#FFFFFF;border:1px solid #DDE0E4;border-radius:20px;padding:24px 26px 18px;box-shadow:0 1px 3px rgba(42,36,32,.06)}
+.klab{font-size:15px;font-weight:700;color:#565B62}
+.kval{font-family:'Alfa Slab One',serif;font-size:46px;line-height:1.1;color:#2A2420;margin-top:6px;white-space:nowrap}
+.kdel{font-size:15px;font-weight:700;margin-top:4px}
+.kdetails{margin-top:14px;border-top:1px solid #EEF0F2}
+.krow{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #F3F4F6;font-size:14.5px}
+.krow span{color:#565B62}
+.krow b{font-weight:700;text-align:right}
+.more{color:#565B62;font-size:15px;margin-top:14px}
+.more a{color:#8B5E3C !important;font-weight:700}
+@media (max-width:1000px){.kgrid{grid-template-columns:1fr}}

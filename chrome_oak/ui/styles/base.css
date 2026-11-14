@@ -1,10 +1,12 @@
 /* Universal styles: used on every page. Page-specific styles live next to each page
    (chrome_oak/ui/styles/pages/<page>.css), so editing one page never changes another. */
-@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Nunito:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap');
 
 /* page + type */
 .stApp{background:#F4F5F7}
-html, body, .stMarkdown, p, li, label, button, input{font-family:'Nunito',sans-serif;color:#2A2420}
+html, body, .stMarkdown, p, li, label, button, input, textarea, svg text{font-family:'DM Sans',sans-serif;color:#2A2420}
+html, body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.stMarkdown p, .stMarkdown li{font-size:15.5px;line-height:1.55}
 h1, h2, h3{font-family:'Alfa Slab One',serif !important;font-weight:400 !important;color:#2A2420 !important}
 .block-container{padding-top:1.4rem;padding-bottom:4rem;max-width:1180px}
 header[data-testid="stHeader"]{background:transparent}
@@ -31,17 +33,50 @@ header[data-testid="stHeader"]{background:transparent}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes twinkle{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
 
-/* buttons: primary = oak, secondary = white */
-.stButton button, .stDownloadButton button{background:#8B5E3C;color:#FFFFFF;border:none;border-radius:999px;font-weight:800;min-height:46px;padding:0 22px;box-shadow:0 3px 0 #5E3B22}
-.stButton button p, .stDownloadButton button p{color:#FFFFFF !important;font-weight:800}
-.stButton button:hover{background:#9A6943;color:#FFFFFF}
-.stButton button[kind="secondary"]{background:#FFFFFF;color:#2A2420;border:2px solid #DDE0E4;box-shadow:none}
-.stButton button[kind="secondary"] p{color:#2A2420 !important}
+/* buttons: primary = oak, secondary + download = outlined */
+.stButton button, .stDownloadButton button{font-family:'DM Sans',sans-serif;font-weight:700;font-size:15px;letter-spacing:.1px;
+  min-height:42px;padding:0 20px;border-radius:12px;transition:background .15s, border-color .15s, box-shadow .15s, transform .15s}
+.stButton button p, .stDownloadButton button p{font-weight:700;font-size:15px}
+.stButton button[kind="primary"], .stButton button[data-testid="stBaseButton-primary"]{background:#8B5E3C;color:#FFFFFF;border:1px solid #7A5133;
+  box-shadow:0 1px 2px rgba(42,36,32,.18), inset 0 1px 0 rgba(255,255,255,.12)}
+.stButton button[kind="primary"] p, .stButton button[data-testid="stBaseButton-primary"] p{color:#FFFFFF !important}
+.stButton button[kind="primary"]:hover, .stButton button[data-testid="stBaseButton-primary"]:hover{background:#7A5133;transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(139,94,60,.28)}
+.stButton button[kind="secondary"], .stButton button[data-testid="stBaseButton-secondary"], .stDownloadButton button{background:#FFFFFF;color:#2A2420;
+  border:1px solid #CFD3D8;box-shadow:0 1px 2px rgba(42,36,32,.06)}
+.stButton button[kind="secondary"] p, .stButton button[data-testid="stBaseButton-secondary"] p, .stDownloadButton button p{color:#2A2420 !important}
+.stButton button[kind="secondary"]:hover, .stButton button[data-testid="stBaseButton-secondary"]:hover, .stDownloadButton button:hover{
+  border-color:#8B5E3C;background:#FBF8F4;color:#5E3B22}
+.stButton button:focus-visible, .stDownloadButton button:focus-visible{outline:3px solid rgba(139,94,60,.35);outline-offset:2px}
+.stButton button:active, .stDownloadButton button:active{transform:translateY(0)}
 
-/* inputs and expanders */
-div[data-baseweb="select"] > div{border-radius:999px !important;border:3px solid #DDE0E4 !important;background:#FFFFFF !important}
-[data-testid="stExpander"]{background:#FFFFFF;border:3px solid #DDE0E4 !important;border-radius:22px !important}
-[data-testid="stExpander"] summary p{font-size:16px;font-weight:800}
+/* inputs */
+div[data-baseweb="select"] > div, [data-testid="stDateInput"] div[data-baseweb="input"]{border-radius:12px !important;border:1px solid #CFD3D8 !important;background:#FFFFFF !important}
+div[data-baseweb="select"] > div:hover{border-color:#8B5E3C !important}
+span[data-baseweb="tag"]{background:#F5E9DA !important;border-radius:8px !important}
+span[data-baseweb="tag"] span{color:#5E3B22 !important;font-weight:600}
+[data-testid="stWidgetLabel"] p{font-size:13px !important;font-weight:700 !important;color:#565B62 !important;letter-spacing:.2px}
+
+/* collapsible boxes (st.expander) */
+[data-testid="stExpander"]{margin-bottom:12px}
+[data-testid="stExpander"] details{background:#FFFFFF;border:1px solid #DDE0E4;border-radius:16px;
+  box-shadow:0 1px 3px rgba(42,36,32,.06);overflow:hidden;transition:border-color .15s, box-shadow .15s}
+[data-testid="stExpander"] details:hover{border-color:#C9B49F;box-shadow:0 4px 14px rgba(42,36,32,.08)}
+[data-testid="stExpander"] details[open]{border-color:#E6CDAE;box-shadow:0 6px 20px rgba(42,36,32,.08)}
+[data-testid="stExpander"] summary{padding:16px 20px !important}
+[data-testid="stExpander"] summary:hover{background:#FBF8F4}
+[data-testid="stExpander"] details[open] summary{border-bottom:1px solid #EEF0F2}
+[data-testid="stExpander"] summary p{font-size:16px !important;font-weight:700 !important;color:#2A2420}
+[data-testid="stExpander"] summary svg{color:#8B5E3C;fill:#8B5E3C}
+[data-testid="stExpanderDetails"]{padding:16px 20px 20px !important}
+
+/* toggles and tabs */
+[data-testid="stCheckbox"] label p{font-size:14.5px !important;font-weight:600 !important;color:#2A2420 !important}
+.stTabs [data-baseweb="tab-list"]{gap:6px;border-bottom:1px solid #DDE0E4}
+.stTabs [data-baseweb="tab"]{height:42px;padding:0 16px;border-radius:10px 10px 0 0}
+.stTabs [data-baseweb="tab"] p{font-size:15px;font-weight:700}
+.stTabs [aria-selected="true"] p{color:#5E3B22 !important}
+.stTabs [data-baseweb="tab-highlight"]{background:#8B5E3C}
 
 /* tables (components.table) */
 .tbl{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:18px;overflow:hidden;overflow-x:auto;margin:14px 0 6px}

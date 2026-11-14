@@ -1,19 +1,20 @@
-"""Overview: the problem we chose, the headline numbers, and a dashboard of charts."""
+"""Overview: the problem we chose and the four headline numbers, in detail. Charts live on the Insights page."""
 
 import streamlit as st
 
-from chrome_oak.analysis import get_dashboard_charts, get_focus, get_kpis
+from chrome_oak.analysis import get_focus, get_kpis
 from chrome_oak.config import ASOF
-from chrome_oak.ui.charts import chart_svg, sparkline
+from chrome_oak.ui.charts import trend_svg
 from chrome_oak.ui.components import esc, html
 from chrome_oak.ui.theme import DAISY, MUT, OAK, SPARK, inject_page_css
 
 
-def chart_card(ch):
-    wide = ch.get("wide")
-    ch = {**ch, "width": 1100 if wide else 560, "height": 300}
-    return (f'<div class="dcard{" wide" if wide else ""}"><div class="dtitle">{esc(ch["title"])}</div>'
-            f'<div class="dsub">{esc(ch.get("caption", ""))}</div>{chart_svg(ch)}</div>')
+def kpi_card(k, color):
+    details = "".join(f'<div class="krow"><span>{esc(a)}</span><b>{esc(b)}</b></div>' for a, b in k.get("details", []))
+    return (f'<div class="kbig"><div class="klab">{esc(k["label"])}</div>'
+            f'<div class="kval">{esc(k["value"])}</div><div class="kdel" style="color:{color}">{esc(k["delta"])}</div>'
+            f'{trend_svg(k.get("trend"), k.get("trend_labels", ["", ""]), color, k.get("trend_fmt"))}'
+            f'<div class="kdetails">{details}</div></div>')
 
 
 def render(ctx):
@@ -30,12 +31,5 @@ def render(ctx):
     )
 
     kpis = get_kpis()
-    for i, (col, k) in enumerate(zip(st.columns(len(kpis)), kpis)):
-        color = OAK if i % 2 == 0 else MUT
-        col.markdown(
-            f'<div class="card kpi"><div class="lab">{esc(k["label"])}</div><div class="val">{esc(k["value"])}</div>'
-            f'<div class="del" style="color:{color}">{esc(k["delta"])}</div>{sparkline(k.get("trend"), color)}</div>',
-            unsafe_allow_html=True,
-        )
-
-    html('<div class="dash">' + "".join(chart_card(ch) for ch in get_dashboard_charts()) + "</div>")
+    html('<div class="kgrid">' + "".join(kpi_card(k, OAK if i % 2 == 0 else MUT) for i, k in enumerate(kpis)) + "</div>")
+    html('<p class="more">The charts behind these numbers are on the <a href="?page=insights" target="_self">Insights</a> page.</p>')

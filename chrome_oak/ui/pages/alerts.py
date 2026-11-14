@@ -46,23 +46,41 @@ def _alert(rule, issue, log, first):
             html('<p class="muted">All clear at this setting, nothing to send.</p>')
             return
 
-        table(issue["rows"])
-
-        n = len(issue["drafts"])
-        c1, c2, c3 = st.columns([1.3, 1, 1])
-        if sent:
-            c1.markdown(f'<div class="sentok">✓ Sent to {esc(issue["notify"])} · {esc(sent)}</div>', unsafe_allow_html=True)
-        elif c1.button(f"Send {n} message{'s' if n != 1 else ''} to {issue['notify']}", key=f"send_{rid}", type="primary"):
-            action_log.record_sent(issue)
-            st.session_state.flash = f"Sent ✓ {issue['notify']} notified"
-            st.rerun()
-        if not sent and c2.button("Dismiss", key=f"dismiss_{rid}", type="secondary"):
-            action_log.record_dismissed(issue)
-            st.session_state.flash = "Alert dismissed"
-            st.rerun()
-        c3.download_button("Download drafts", issue["drafts"].to_csv(index=False), f"drafts_{rid}.csv", "text/csv", key=f"dl_{rid}")
-        if st.toggle("Preview the messages", key=f"preview_{rid}"):
+        # 1. look at what was found
+        t1, t2 = st.columns(2)
+        show_rows = t1.toggle(f"Show the {count} flagged row{'s' if count != 1 else ''}", key=f"rows_{rid}")
+        show_msgs = t2.toggle("Preview the drafted messages", key=f"preview_{rid}")
+        if show_rows:
+            table(issue["rows"])
+        if show_msgs:
             html(_drafts_html(issue["drafts"]))
+
+        # 2. decide: one action bar, the main action last (right)
+        _action_bar(issue, sent)
+
+
+def _action_bar(issue, sent):
+    rid, n = issue["id"], len(issue["drafts"])
+    msgs = f"{n} message{'s' if n != 1 else ''}"
+    html('<div class="actsep"></div>')
+    info, dl, dis, send = st.columns([2.4, 1.1, 0.9, 1.4], vertical_alignment="center")
+    if sent:
+        info.markdown(f'<div class="actinfo ok">✓ Sent to {esc(issue["notify"])}<span>{esc(sent)}</span></div>', unsafe_allow_html=True)
+    else:
+        info.markdown(f'<div class="actinfo">Ready: {msgs} for {esc(issue["notify"])}<span>Nothing goes out until you press Send.</span></div>',
+                      unsafe_allow_html=True)
+    dl.download_button("Download", issue["drafts"].to_csv(index=False), f"drafts_{rid}.csv", "text/csv",
+                       key=f"dl_{rid}", width="stretch", help="The drafted messages as a CSV file")
+    if sent:
+        return
+    if dis.button("Dismiss", key=f"dismiss_{rid}", type="secondary", width="stretch", help="Not a problem: hide this alert (logged)"):
+        action_log.record_dismissed(issue)
+        st.session_state.flash = "Alert dismissed"
+        st.rerun()
+    if send.button(f"Send {msgs}", key=f"send_{rid}", type="primary", width="stretch"):
+        action_log.record_sent(issue)
+        st.session_state.flash = f"Sent ✓ {issue['notify']} notified"
+        st.rerun()
 
 
 def render(ctx):

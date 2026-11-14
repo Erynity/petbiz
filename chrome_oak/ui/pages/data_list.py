@@ -22,9 +22,9 @@ def sortable_table(df, height=620, max_rows=300):
     payload = json.dumps({"cols": [str(c).replace("_", " ") for c in cols], "raw": rows, "shown": shown, "nums": nums},
                          default=str)
     components.html(f"""
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
 <style>
-body{{margin:0;font-family:'Nunito',sans-serif;color:#2A2420;background:transparent}}
+body{{margin:0;font-family:'DM Sans',sans-serif;color:#2A2420;background:transparent}}
 .wrap{{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:18px;overflow:auto;height:{height - 40}px}}
 table{{width:100%;border-collapse:collapse;font-size:15px}}
 th{{position:sticky;top:0;background:#F4F5F7;text-align:left;padding:0;z-index:1}}

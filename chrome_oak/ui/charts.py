@@ -132,3 +132,23 @@ def line_chart_svg(chart):
 def chart_svg(chart):
     """Pick the right drawing for a chart dict: kind "line", "hbar" or "bar" (default)."""
     return {"line": line_chart_svg, "hbar": hbar_chart_svg}.get(chart.get("kind"), bar_chart_svg)(chart)
+
+
+def trend_svg(values, labels, color, fmt=None):
+    """A larger sparkline for KPI cards: soft area, line, end dot, and first/last labels."""
+    if not values or len(values) < 2:
+        return ""
+    W, H, pad = 320, 90, 6
+    lo, hi = min(values), max(values)
+    span = (hi - lo) or 1
+    xs = [pad + (W - 2 * pad) * i / (len(values) - 1) for i in range(len(values))]
+    ys = [H - 22 - (v - lo) / span * (H - 40) for v in values]
+    pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in zip(xs, ys))
+    area = f"{xs[0]:.1f},{H - 22} {pts} {xs[-1]:.1f},{H - 22}"
+    return (f'<svg viewBox="0 0 {W} {H}" width="100%" aria-hidden="true" style="display:block;margin-top:14px">'
+            f'<polygon points="{area}" fill="{color}" opacity=".10"/>'
+            f'<polyline points="{pts}" fill="none" stroke="{color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'
+            f'<circle cx="{xs[-1]:.1f}" cy="{ys[-1]:.1f}" r="4.5" fill="{color}" stroke="#FFFFFF" stroke-width="2"/>'
+            f'<text x="{xs[-1]:.1f}" y="{ys[-1] - 9:.1f}" text-anchor="end" font-size="12" font-weight="700" fill="{INK}">{_fmt(values[-1], fmt)}</text>'
+            f'<text x="{pad}" y="{H - 4}" font-size="11" font-weight="600" fill="{MUT}">{esc(labels[0])}</text>'
+            f'<text x="{W - pad}" y="{H - 4}" text-anchor="end" font-size="11" font-weight="600" fill="{MUT}">{esc(labels[-1])}</text></svg>')

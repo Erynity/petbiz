@@ -112,7 +112,26 @@ def aging_chart():
             "x_title": "Days late"}
 
 
+def growth_chart():
+    """Revenue vs gross profit per quarter (orders with a known cost)."""
+    _, orders, *_ = load_data()
+    known = orders[orders["cost"].notna()]
+    quarter = known["order_date"].dt.to_period("Q")
+    q = known.groupby(quarter).agg(Revenue=("net", "sum"), **{"Gross profit": ("margin", "sum")})
+    q.index = [f"{p.year} Q{p.quarter}" for p in q.index]
+    return {"title": "Revenue is growing faster than profit", "caption": "Revenue and gross profit per quarter",
+            "data": q.round(0), "kind": "line", "format": "dollar"}
+
+
+def region_revenue_chart():
+    _, orders, *_ = load_data()
+    rev = orders.groupby("region")["net"].sum().sort_values(ascending=False)
+    return {"title": "Revenue by region", "caption": "Atlantic is the #2 region for sales…",
+            "data": rev.to_frame("revenue"), "kind": "bar", "format": "dollar", "highlight": "Atlantic", "x_title": "Region"}
+
+
 def get_insight_charts(region=None):
     """The charts behind each insight, in the same order as get_insights()."""
     rep_chart, region_chart = get_charts(region)
-    return [[rep_chart, region_chart], [refunds_chart()], [aging_chart()]]
+    return [[growth_chart(), region_revenue_chart(), {**region_chart, "caption": "…but keeps half the margin"}, rep_chart],
+            [refunds_chart()], [aging_chart()]]

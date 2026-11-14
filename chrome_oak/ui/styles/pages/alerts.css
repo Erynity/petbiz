@@ -4,8 +4,13 @@
 .impact{font-size:15px;color:#565B62;margin:2px 0 6px}
 .impact b{color:#5E3B22}
 .impact .rule{font-size:13.5px;margin-top:2px}
-.sentok{display:flex;align-items:center;min-height:46px;font-size:15px;font-weight:800;color:#2F5D3A}
 .draft{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:18px;padding:14px 16px;font-size:15px;line-height:1.5;margin-bottom:10px}
 .draft .to{font-size:12px;font-weight:800;color:#565B62;text-transform:uppercase;letter-spacing:1px}
 .draft .subj{font-size:16px;font-weight:800;margin:2px 0 6px}
 .draft .note{margin-top:8px;font-size:13px;font-weight:800;color:#8B5E3C}
+
+/* action bar at the bottom of each alert */
+.actsep{border-top:1px solid #EEF0F2;margin:14px 0 4px}
+.actinfo{font-size:15px;font-weight:700;color:#2A2420;line-height:1.3}
+.actinfo span{display:block;font-size:13px;font-weight:500;color:#565B62;margin-top:2px}
+.actinfo.ok{color:#2F5D3A}

@@ -57,8 +57,6 @@ a.navi:hover{background:rgba(255,255,255,.6)}
 .pill{display:inline-block;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#FFFFFF;background:#8B5E3C;border-radius:999px;padding:3px 12px}
 .lbl{font-size:12px;font-weight:800;color:#8B5E3C;text-transform:uppercase;letter-spacing:1px;margin-top:8px}
 .card p{margin:2px 0 6px;font-size:15px;line-height:1.5;color:#565B62}
-.prep{display:grid;grid-template-columns:1fr auto;gap:12px;padding:10px 0;border-top:2px solid #EEF0F2}
-.prep .rows{font-size:13px;font-weight:700;color:#565B62;background:#EEF0F2;border-radius:999px;padding:3px 10px;white-space:nowrap;align-self:start}
 
 /* alerts: 3-step story */
 .sev{font-size:13px;font-weight:800;border-radius:999px;padding:4px 12px;margin-right:8px}

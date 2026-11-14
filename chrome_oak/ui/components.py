@@ -17,7 +17,6 @@ PAGES = [
     ("insights", "chart", "Insights"),
     ("alerts", "bell", "Alerts"),
     ("log", "log", "Action log"),
-    ("prep", "data", "Data prep"),
 ]
 
 

@@ -16,7 +16,7 @@ from chrome_oak.analysis import detect_issues
 from chrome_oak.ui.components import PAGES, sidebar
 from chrome_oak.ui.mascots import show_pets
 from chrome_oak.ui.pages import action_log as log_page
-from chrome_oak.ui.pages import alerts, data_list, data_prep, insights, overview, welcome
+from chrome_oak.ui.pages import alerts, data_list, insights, overview, welcome
 from chrome_oak.ui.theme import inject_frame, inject_theme
 
 st.set_page_config(page_title="Chrome & Oak · Health Check", page_icon="💼", layout="wide")
@@ -28,7 +28,6 @@ ROUTES = {
     "insights": insights.render,
     "alerts": alerts.render,
     "log": log_page.render,
-    "prep": data_prep.render,
 }
 
 page = st.query_params.get("page", "welcome")

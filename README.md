@@ -26,7 +26,6 @@ petbiz/
 │   │   ├── metrics.py          # small helpers (margin %, money format)
 │   │   ├── overview.py         # get_focus(), get_kpis()
 │   │   ├── insights.py         # get_charts(), get_insights()
-│   │   ├── prep.py             # get_prep_steps(), get_removed_rows()
 │   │   └── detections.py       # the 3 alert rules + ALERT_RULES (slider settings)
 │   ├── actions/
 │   │   └── action_log.py       # sent / dismissed alerts -> data/action_log.csv
@@ -41,13 +40,12 @@ petbiz/
 │           ├── data_list.py
 │           ├── insights.py
 │           ├── alerts.py
-│           ├── action_log.py
-│           └── data_prep.py
+│           └── action_log.py
 ├── data/
 │   ├── raw/                    # exports exactly as received (never edited)
 │   └── clean/                  # written by cleaning.py
 └── docs/
-    └── CLEANING_LOG.md         # every dropped row, by reason
+    └── CLEANING_LOG.md         # data prep: every cleaning step and dropped row
 ```
 
 ## Where to change things

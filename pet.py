@@ -159,7 +159,7 @@ DUO_CSS = """
 <style>
 .duo{position:fixed;right:24px;bottom:20px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:8px;font-family:'Inter',sans-serif}
 #duo-toggle{position:absolute;opacity:0;pointer-events:none}
-.duo-chat{width:330px;background:#FFFFFF;border:1px solid #E9E1D6;border-radius:16px 16px 4px 16px;padding:14px 16px;box-shadow:0 12px 32px rgba(36,26,19,.16);display:flex;flex-direction:column;gap:10px;animation:duo-pop .4s 1.4s ease-out both}
+.duo-chat{width:330px;background:#FFFFFF;border:1px solid #E9E1D6;border-radius:16px 16px 4px 16px;padding:14px 16px;box-shadow:0 12px 32px rgba(36,26,19,.16);display:flex;flex-direction:column;gap:10px;animation:duo-pop .4s .3s ease-out both}
 .duo-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:#6B5B4E;border-bottom:1px solid #F0EAE1;padding-bottom:8px}
 .duo-live{display:inline-flex;align-items:center;gap:6px}
 .duo-live::before{content:"";width:8px;height:8px;border-radius:50%;background:#3F8F50;box-shadow:0 0 0 3px #E3F1E5}
@@ -196,8 +196,8 @@ def show_pets(mood, chrome_msg, oak_msg):
         + '<div class="duo-line thanks"><span class="duo-who oak">Oak</span><span class="duo-text">Thanks, partner. Click us again for the update.</span></div>'
         + "</div>"
         + '<label for="duo-toggle" class="duo-btn" title="Pet Chrome &amp; Oak">'
-        + f'<span class="walk-in" style="display:inline-block;--wx:80%;--wx2:50%">{mascot_svg("chrome", mood, 76)}</span>'
-        + f'<span class="walk-in d2" style="display:inline-block;--wx:60%;--wx2:30%">{mascot_svg("oak", oak_mood, 76)}</span>'
+        + f'<span style="display:inline-block">{mascot_svg("chrome", mood, 76)}</span>'
+        + f'<span style="display:inline-block">{mascot_svg("oak", oak_mood, 76)}</span>'
         + "</label>"
         + '<span class="duo-hint">Click to pet</span>'
         + "</div>"

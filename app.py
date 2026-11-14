@@ -23,7 +23,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from pet import MASCOT_CSS, mascot_svg, mascots_pair
+from pet import MASCOT_CSS, mascot_svg, mascots_pair, show_pets
 
 st.set_page_config(page_title="Chrome & Oak · Health Check", page_icon="💼", layout="wide")
 
@@ -42,19 +42,22 @@ except ImportError:
 
     def get_kpis():
         return [
-            {"label": "Revenue", "value": "$ —", "delta": "— vs last year"},
-            {"label": "Gross margin", "value": "— %", "delta": "— pts vs last year"},
-            {"label": "Overdue invoices", "value": "$ —", "delta": "— invoices"},
-            {"label": "Return rate", "value": "— %", "delta": "— of orders"},
+            {"label": "Revenue", "value": "$ —", "delta": "— vs last year", "trend": [1, 2, 3, 4, 6, 7, 9]},
+            {"label": "Gross margin", "value": "— %", "delta": "— pts vs last year", "trend": [9, 8, 8, 6, 5, 3, 2]},
+            {"label": "Overdue invoices", "value": "$ —", "delta": "— invoices", "trend": [1, 2, 2, 4, 5, 7, 8]},
+            {"label": "Return rate", "value": "— %", "delta": "— of orders", "trend": [3, 4, 3, 5, 5, 6, 6]},
         ]
 
     def get_charts():
-        months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]
-        line = pd.DataFrame({"Revenue": [10, 11, 12, 13, 14, 15], "Cash collected": [9, 9, 9, 9, 9, 9]}, index=months)
-        bars = pd.DataFrame({"Avg discount %": [4, 5, 6, 9]}, index=["Q1", "Q2", "Q3", "Q4"])
+        reps = pd.DataFrame({"avg_discount": [0.23, 0.11, 0.10, 0.10, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.08]},
+                            index=["R07", "R09", "R06", "R03", "R05", "R08", "R01", "R10", "R04", "R11", "R02"])
+        regions = pd.DataFrame({"margin": [0.33, 0.33, 0.32, 0.32, 0.16]},
+                               index=["Quebec", "BC", "Prairies", "Ontario", "Atlantic"])
         return [
-            {"title": "Revenue vs. cash collected", "caption": "Placeholder shape", "data": line, "kind": "line"},
-            {"title": "Average discount by quarter", "caption": "Placeholder shape", "data": bars, "kind": "bar"},
+            {"title": "Average discount by sales rep", "caption": "Atlantic rep highlighted", "data": reps,
+             "kind": "bar", "format": "percent", "sort": True, "highlight": "R07", "x_title": "Sales rep"},
+            {"title": "Margin % by region", "caption": "Atlantic highlighted", "data": regions,
+             "kind": "bar", "format": "percent", "highlight": "Atlantic", "x_title": "Region"},
         ]
 
     def get_prep_steps():
@@ -72,7 +75,8 @@ except ImportError:
         ]
 
     def detect_issues(days=30):
-        rows = pd.DataFrame({"customer": ["[Customer A]", "[Customer B]"], "region": ["[Region]", "[Region]"], "detail": ["—", "—"]})
+        rows = pd.DataFrame({"customer": ["[Customer A]", "[Customer B]", "[Customer C]"], "region": ["Atlantic", "Ontario", "Atlantic"],
+                             "owes": ["$ —", "$ —", "$ —"], "days_late": [72, 41, 33]})
         return [
             {"name": "customers over their credit limit", "severity": "High",
              "rule": f"owes more than their credit limit AND is {days}+ days late",
@@ -105,6 +109,10 @@ header[data-testid="stHeader"]{background:transparent}
 section[data-testid="stSidebar"]{background:linear-gradient(180deg,#F1F3F5 0%,#D9DCE0 55%,#C9CDD2 100%);border-right:1px solid #B9BFC6}
 section[data-testid="stSidebar"] *{color:#2A2420}
 .logo{display:flex;align-items:center;gap:8px;font-family:'Alfa Slab One',serif;font-size:21px;color:#5E3B22 !important;margin:4px 0 18px}
+.navlbl{font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#565B62 !important;margin:4px 0 8px 14px}
+.simnote{font-size:13px;color:#565B62 !important;line-height:1.45;padding:0 6px}
+a.navi{text-decoration:none}
+a.navi:hover{background:rgba(255,255,255,.6)}
 .navi{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:999px;font-weight:800;font-size:15px;margin-bottom:4px}
 .navi.on{background:#FFFFFF;color:#5E3B22 !important;box-shadow:0 2px 6px rgba(42,36,32,.12)}
 .navi .badge{margin-left:auto;background:#8B5E3C;color:#FFFFFF !important;font-size:12px;padding:1px 9px;border-radius:999px}
@@ -173,6 +181,9 @@ section[data-testid="stSidebar"] *{color:#2A2420}
 .tbl th{text-align:left;background:#F4F5F7;color:#565B62;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;padding:10px 14px}
 .tbl td{padding:11px 14px;border-top:2px solid #EEF0F2;color:#2A2420}
 .tbl tr:nth-child(even) td{background:#FBF8F4}
+[data-testid="stElementToolbar"]{display:none !important}
+.vega-embed details,.vega-actions{display:none !important}
+[data-testid="stVegaLiteChart"]{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:24px;overflow:hidden}
 .tag{display:inline-block;background:#FFFFFF;border:2px dashed #B9BFC6;border-radius:999px;padding:5px 14px;font-weight:700;font-size:13px;color:#565B62;margin-bottom:12px}
 </style>
 """
@@ -188,6 +199,21 @@ DAISY = ('<svg class="daisy" width="{s}" height="{s}" viewBox="0 0 100 100" aria
          '<ellipse cx="29" cy="71" rx="11" ry="20" transform="rotate(45 29 71)"/></g><circle cx="50" cy="50" r="14" fill="#D4A84A"/></svg>')
 SPARK = ('<svg class="sparkle" style="{pos}" width="{s}" height="{s}" viewBox="0 0 24 24" aria-hidden="true">'
          '<path d="M12 0 L14 10 L24 12 L14 14 L12 24 L10 14 L0 12 L10 10 Z" fill="#FFFFFF"/></svg>')
+
+ICONS = {
+    "home": '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
+    "chart": '<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/>',
+    "data": '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
+    "bulb": '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V16h8v-1.3A7 7 0 0 0 12 2z"/>',
+    "bell": '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/>',
+    "log": '<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>',
+}
+
+
+def icon(name, color="#565B62", size=18):
+    return (f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" '
+            f'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{ICONS[name]}</svg>')
+
 
 
 def html(s):
@@ -210,6 +236,12 @@ def rerun():
 # ---------------------------------------------------------------------------
 if "started" not in st.session_state:
     st.session_state.started = False
+_page = st.query_params.get("page") if hasattr(st, "query_params") else None
+if _page == "dashboard":
+    st.session_state.started = True
+elif _page == "welcome":
+    st.session_state.started = False
+    st.query_params.clear()
 
 if not st.session_state.started:
     html(
@@ -221,7 +253,7 @@ if not st.session_state.started:
         + '<div><div class="hi">Hi! We\'re Chrome &amp; Oak. Let\'s check on the business.</div>'
         "<h1>Revenue is up.<br>So why is cash tight?</h1>"
         "<p>We dig through the orders, returns and customers, then act on what needs attention.</p></div>"
-        f'<div class="stage">{mascots_pair("happy", "happy", 150, walk_in=True)}</div>'
+        f'<div class="stage">{mascots_pair("happy", "happy", 150)}</div>'
         '</div><div class="checker"></div>'
     )
     steps = [
@@ -233,6 +265,7 @@ if not st.session_state.started:
         col.markdown(f'<div class="card"><div class="ttl">{t}</div><p>{d}</p></div>', unsafe_allow_html=True)
     if st.button("Open the dashboard  →"):
         st.session_state.started = True
+        st.query_params["page"] = "dashboard"
         rerun()
     st.stop()
 
@@ -241,143 +274,98 @@ if not st.session_state.started:
 # 4. Static charts (no scroll-to-zoom)
 # ---------------------------------------------------------------------------
 def draw_chart(chart):
+    """Clean bar/line chart: value labels on top, one highlighted bar, no toolbar.
+
+    Optional keys in the chart dict:
+      "highlight": label(s) to colour oak, e.g. "R07" or ["Atlantic"]
+      "format":    "percent" (0.23 -> 23%), "dollar" or "number"
+      "sort":      True to sort bars from biggest to smallest
+    """
     df = chart["data"].reset_index()
     x = df.columns[0]
     ys = list(df.columns[1:])
-    long = df.melt(id_vars=x, value_vars=ys, var_name="_series", value_name="_value")
-    x_type = "T" if pd.api.types.is_datetime64_any_dtype(long[x]) else "N"
-    base = alt.Chart(long)
-    mark = (base.mark_line(point=True, strokeWidth=3) if chart.get("kind") == "line"
-            else base.mark_bar(cornerRadiusTopLeft=8, cornerRadiusTopRight=8))
-    enc = dict(
-        x=alt.X(f"{x}:{x_type}", sort=None, title=None, axis=alt.Axis(labelAngle=0)),
-        y=alt.Y("_value:Q", title=None),
-        color=alt.Color("_series:N", scale=alt.Scale(range=[OAK, "#9AA0A8", "#D4A84A", OAKD]),
-                        legend=alt.Legend(orient="top", title=None) if len(ys) > 1 else None),
-        tooltip=[alt.Tooltip(f"{x}:{x_type}", title=str(x)), alt.Tooltip("_series:N", title="series"),
-                 alt.Tooltip("_value:Q", title="value", format=",.0f")],
-    )
-    if chart.get("kind") != "line" and len(ys) > 1:
-        enc["xOffset"] = "_series:N"
+    fmt = {"percent": ".0%", "dollar": "$,.0f"}.get(chart.get("format"), ",.0f")
+    axis_fmt = {"percent": ".0%", "dollar": "$,.0s"}.get(chart.get("format"), ",.0f")
+
+    if chart.get("kind") == "line":
+        long = df.melt(id_vars=x, value_vars=ys, var_name="_series", value_name="_value")
+        x_type = "T" if pd.api.types.is_datetime64_any_dtype(long[x]) else "N"
+        c = alt.Chart(long).mark_line(point=True, strokeWidth=3).encode(
+            x=alt.X(f"{x}:{x_type}", sort=None, title=None, axis=alt.Axis(labelAngle=0)),
+            y=alt.Y("_value:Q", title=None, axis=alt.Axis(format=axis_fmt)),
+            color=alt.Color("_series:N", scale=alt.Scale(range=[OAK, "#9AA0A8", "#D4A84A"]),
+                            legend=alt.Legend(orient="top", title=None)),
+            tooltip=[alt.Tooltip(f"{x}:{x_type}"), alt.Tooltip("_series:N", title="series"),
+                     alt.Tooltip("_value:Q", title="value", format=fmt)],
+        )
+    else:
+        y = ys[0]
+        df = df[[x, y]].copy()
+        if chart.get("sort"):
+            df = df.sort_values(y, ascending=False)
+        hl = chart.get("highlight") or []
+        hl = [hl] if isinstance(hl, str) else list(hl)
+        df["_hl"] = df[x].astype(str).isin([str(h) for h in hl])
+        order = list(df[x].astype(str))
+        base = alt.Chart(df).encode(x=alt.X(f"{x}:N", sort=order, title=chart.get("x_title"),
+                                            axis=alt.Axis(labelAngle=0, titleColor="#B9BFC6", titleFontWeight=600, ticks=False),
+                                            scale=alt.Scale(paddingInner=0.25)))
+        bars = base.mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
+            y=alt.Y(f"{y}:Q", title=None, axis=alt.Axis(format=axis_fmt, tickCount=5)),
+            color=alt.condition("datum._hl", alt.value("#D9692B"), alt.value("#BFC3CB")),
+            tooltip=[alt.Tooltip(f"{x}:N"), alt.Tooltip(f"{y}:Q", format=fmt)],
+        )
+        labels = base.mark_text(dy=-8, fontSize=12, fontWeight=800, font="Nunito").encode(
+            y=f"{y}:Q", text=alt.Text(f"{y}:Q", format=fmt),
+            color=alt.condition("datum._hl", alt.value(INK), alt.value(INK)),
+        )
+        c = bars + labels
     st.altair_chart(
-        mark.encode(**enc).properties(height=260).configure_view(strokeWidth=0)
-        .configure_axis(labelColor=MUT, gridColor="#EEF0F2", domainColor=LINE, labelFont="Nunito", labelFontSize=12),
+        c.properties(height=320, background="#FFFFFF", padding={"left": 16, "right": 16, "top": 20, "bottom": 12})
+        .configure_view(strokeWidth=0)
+        .configure_axis(labelColor=MUT, gridColor="#EEF0F2", domainColor=LINE, tickColor=LINE,
+                        labelFont="Nunito", labelFontSize=12, labelFontWeight=600),
         use_container_width=True,
+        theme=None,  # stop Streamlit's dark mode from turning the chart black
     )
 
 
 # ---------------------------------------------------------------------------
-# 5. Dashboard
+# 5. Dashboard: one HTML page that matches the mockup exactly (dashboard_view.py)
 # ---------------------------------------------------------------------------
-# Simulation bonus: threshold slider (in the sidebar so it's always reachable)
-with st.sidebar:
-    html(f'<div class="logo">{LEAF} Chrome &amp; Oak</div>')
-    days = st.slider("Flag invoices after (days late)", 15, 90, 30, 5)
+import streamlit.components.v1 as components
 
-issues = detect_issues(days)
+from dashboard_view import render_dashboard
+
+html("""<style>
+header[data-testid="stHeader"], section[data-testid="stSidebar"], [data-testid="collapsedControl"]{display:none !important}
+.block-container{max-width:none !important;padding:0 !important}
+iframe{border:none;display:block}
+</style>""")
+
+issues = detect_issues(15)  # loosest rule; the slider in the page narrows it down live
 flagged = [i for i in issues if len(i["rows"]) > 0]
-
-with st.sidebar:
-    html(
-        '<div class="navi on">Overview</div>'
-        f'<div class="navi">Alerts<span class="badge">{len(flagged)}</span></div>'
-        f'<div class="duty"><div style="display:flex;justify-content:center">{mascots_pair("happy", "happy", 72)}</div>'
-        "<b>Your analysts are on duty</b><span>Chrome checks the data. Oak handles the follow-ups.</span></div>"
-    )
-    if st.button("← Back to welcome"):
-        st.session_state.started = False
-        rerun()
-
-if USING_PLACEHOLDERS:
-    html('<span class="tag">Placeholders · waiting for analysis.py</span>')
-
-# Banner
-html(
-    '<div class="banner"><div class="ring"></div>'
-    + SPARK.format(pos="top:22px;right:34%", s=22) + SPARK.format(pos="bottom:18px;left:48%", s=16)
-    + DAISY.format(s=84)
-    + "<div><h1>How's business?</h1>"
-    "<p>Revenue is up, but cash is tight. Here's what's driving the gap.</p>"
-    f'<div class="focus"><b>Our focus:</b> {get_focus()}</div></div>'
-    '<span class="checked">✓ Data checked today</span>'
-    '</div><div class="checker"></div>'
-)
-
-# KPIs
-kpis = get_kpis()
-for col, k in zip(st.columns(len(kpis)), kpis):
-    col.markdown(
-        f'<div class="card kpi"><div class="lab">{k["label"]}</div><div class="val">{k["value"]}</div>'
-        f'<div class="del">{k["delta"]}</div></div>',
-        unsafe_allow_html=True,
-    )
-
-# Charts (DETECT)
 charts = get_charts()
-for col, ch in zip(st.columns([2, 1]) if len(charts) == 2 else st.columns(len(charts)), charts):
-    with col:
-        with st.container(border=True):
-            html(f'<div class="ttl">{ch["title"]}</div><div class="sub">{ch["caption"]}</div>')
-            draw_chart(ch)
+height = 2950 + 44 * max((len(i["rows"]) for i in flagged), default=0) + 40 * sum(len(i["actions"]) for i in flagged)
 
-# Data prep (DATA)
-prep = "".join(
-    f'<div class="prep"><div><div class="ttl" style="font-size:15px">✓ {p["what"]}</div>'
-    f'<p style="margin:2px 0 0"><b style="color:#8B5E3C">Why:</b> {p["why"]}</p></div>'
-    f'<span class="rows">{p["rows"]}</span></div>'
-    for p in get_prep_steps()
+components.html(
+    render_dashboard(get_focus(), get_kpis(), charts, get_prep_steps(), get_insights(), issues,
+                     placeholders=USING_PLACEHOLDERS),
+    height=height,
+    scrolling=False,
 )
-html(f'<div class="card"><div class="slab">How we prepared the data</div>'
-     f'<div class="sub">Every change we made before trusting a number</div>{prep}</div>')
 
-# Insights (DECIDE)
-ins = get_insights()
-for i, (col, x) in enumerate(zip(st.columns(len(ins)), ins), start=1):
-    col.markdown(
-        f'<div class="card"><span class="pill">Insight {i}</span>'
-        f'<div style="font-size:20px;font-weight:700;margin:10px 0 4px">{x["title"]}</div>'
-        f'<div class="lbl">What happened</div><p>{x["what"]}</p>'
-        f'<div class="lbl">Why it matters</div><p>{x["why"]}</p>'
-        f'<div class="lbl">What to do</div><p>{x["todo"]}</p></div>',
-        unsafe_allow_html=True,
-    )
 
-# Alerts (ACT)
-html('<div class="slab" style="margin:8px 0 2px">Alerts inbox</div>'
-     f'<div class="sub">Triggered automatically when a condition is met · flagging after <b>{days} days</b></div>')
-
-log = []
-for n, issue in enumerate(issues):
-    count = len(issue["rows"])
-    with st.expander(f"{issue['severity']} · {count} {issue['name']}", expanded=(n == 0 and count > 0)):
-        if not count:
-            st.write("All clear, nothing to do.")
-            continue
-        c1, c2, c3 = st.columns(3)
-        c1.markdown(
-            f'<div class="step3"><div class="who"><span style="flex:none">{mascot_svg("chrome", "worried", 58)}</span>'
-            f'<div><div class="k">Step 1 · Chrome noticed</div><div class="h">{issue["found"]}</div></div></div>'
-            f'<p style="margin:8px 0 0;font-size:15px;color:#565B62">Rule: {issue["rule"]}.</p></div>',
-            unsafe_allow_html=True,
-        )
-        done = "".join(f'<div class="done">✓ {a}</div>' for a in issue["actions"])
-        c2.markdown(
-            f'<div class="step3 oak"><div class="who"><span style="flex:none">{mascot_svg("oak", "happy", 58)}</span>'
-            f'<div><div class="k">Step 2 · Oak took care of it</div><div class="h">{len(issue["actions"])} things done</div></div></div>'
-            f"{done}</div>",
-            unsafe_allow_html=True,
-        )
-        with c3:
-            html('<div class="step3"><div class="k">Step 3 · Your turn</div><div class="h">Review and send?</div></div>')
-            if st.button("Preview & send", key=f"send{n}"):
-                st.toast(f"Sent to {issue['notify']} ✓")
-            st.button("Not a problem, dismiss", key=f"dis{n}")
-        table(issue["rows"])
-        for a in issue["actions"]:
-            log.append({"condition": issue["name"], "records": count, "action": a, "sent to": issue["notify"]})
-
-if log:
-    with st.expander("View action log"):
-        log_df = pd.DataFrame(log)
-        table(log_df)
-        st.download_button("Download action log (CSV)", log_df.to_csv(index=False), "action_log.csv", "text/csv")
+# ---------------------------------------------------------------------------
+# 6. Chrome & Oak floating in the bottom-right corner, talking to each other
+# ---------------------------------------------------------------------------
+if not flagged:
+    mood = "happy"
+    chrome_msg = "I checked every order, return and invoice. All clear!"
+    oak_msg = "Great, nothing needs action right now."
+else:
+    top = max(flagged, key=lambda i: len(i["rows"]))
+    mood = "worried" if len(flagged) == 1 else "sad"
+    chrome_msg = f"I found {len(top['rows'])} {top['name']}."
+    oak_msg = f"Done: {top['actions'][0].lower()}. {top['notify']} notified."
+show_pets(mood, chrome_msg, oak_msg)

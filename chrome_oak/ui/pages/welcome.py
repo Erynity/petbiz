@@ -4,10 +4,11 @@ import streamlit as st
 
 from chrome_oak.ui.components import html
 from chrome_oak.ui.mascots import mascots_pair
-from chrome_oak.ui.theme import DAISY, LEAF, SPARK
+from chrome_oak.ui.theme import DAISY, LEAF, SPARK, inject_page_css
 
 
 def render():
+    inject_page_css(__file__)
     html(
         f'<div class="topbar"><span class="logo" style="margin:0">{LEAF} Chrome &amp; Oak</span>'
         '<span class="t">Office Supply · Business health check</span></div>'

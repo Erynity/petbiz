@@ -4,13 +4,13 @@ Chrome (step 1) is the detection, Oak (step 2) is what was prepared automaticall
 and step 3 is the human decision. Sent and dismissed alerts are written to the action log.
 """
 
-import pandas as pd
 import streamlit as st
 
 from chrome_oak.actions import action_log
 from chrome_oak.analysis import ALERT_RULES, run_rule
 from chrome_oak.ui.components import esc, html, page_head, section, table
 from chrome_oak.ui.mascots import mascot_svg
+from chrome_oak.ui.theme import inject_page_css
 
 
 def _drafts_html(drafts):
@@ -54,6 +54,7 @@ def _steps(issue, sent):
 
 
 def render(ctx):
+    inject_page_css(__file__)
     if "flash" in st.session_state:
         st.toast(st.session_state.pop("flash"))
     page_head("Alerts", "Checks that run automatically. When a rule is met, Chrome flags it and Oak drafts the follow-up. You decide what gets sent.")

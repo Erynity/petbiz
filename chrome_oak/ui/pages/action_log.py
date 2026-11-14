@@ -4,9 +4,11 @@ import streamlit as st
 
 from chrome_oak.actions import action_log
 from chrome_oak.ui.components import html, page_head, table
+from chrome_oak.ui.theme import inject_page_css
 
 
 def render(ctx):
+    inject_page_css(__file__)
     page_head("Action log", "Everything the team sent or dismissed, so a person can check it. Nothing is emailed for real in this prototype.")
     log = action_log.read_log()
     if log.empty:

@@ -1,0 +1,56 @@
+/* Universal styles: used on every page. Page-specific styles live next to each page
+   (chrome_oak/ui/styles/pages/<page>.css), so editing one page never changes another. */
+@import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Nunito:wght@400;600;700;800&display=swap');
+
+/* page + type */
+.stApp{background:#F4F5F7}
+html, body, .stMarkdown, p, li, label, button, input{font-family:'Nunito',sans-serif;color:#2A2420}
+h1, h2, h3{font-family:'Alfa Slab One',serif !important;font-weight:400 !important;color:#2A2420 !important}
+.block-container{padding-top:1.4rem;padding-bottom:4rem;max-width:1180px}
+header[data-testid="stHeader"]{background:transparent}
+[data-testid="stElementToolbar"]{display:none !important}
+
+/* cards and labels */
+.card{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:24px;padding:20px 22px;margin-bottom:16px}
+.card p{margin:2px 0 6px;font-size:15px;line-height:1.5;color:#565B62}
+.ttl{font-size:18px;font-weight:800}
+.sub{font-size:14px;color:#565B62;margin-bottom:6px}
+.slab{font-family:'Alfa Slab One',serif;font-size:22px}
+.pill{display:inline-block;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#FFFFFF;background:#8B5E3C;border-radius:999px;padding:3px 12px}
+.lbl{font-size:12px;font-weight:800;color:#8B5E3C;text-transform:uppercase;letter-spacing:1px;margin-top:8px}
+.tag{display:inline-block;background:#FFFFFF;border:2px dashed #B9BFC6;border-radius:999px;padding:5px 14px;font-weight:700;font-size:13px;color:#565B62;margin-bottom:12px}
+
+/* severity pills (Overview and Alerts) */
+.sev{font-size:13px;font-weight:800;border-radius:999px;padding:4px 12px;margin-right:8px}
+.sev.High{color:#8B5E3C;background:#F5E9DA}.sev.Medium{color:#5E3B22;background:#EFE4D6}.sev.Low{color:#565B62;background:#EEF0F2}
+
+/* decorations (Welcome and Overview banners) */
+.checker{height:26px;border-radius:0 0 28px 28px;margin-bottom:18px;background-image:repeating-conic-gradient(#DDE0E4 0 25%, #FFFFFF 0 50%);background-size:26px 26px}
+.daisy{position:absolute;top:-14px;right:18px;animation:spin 14s linear infinite}
+.sparkle{position:absolute;animation:twinkle 2.4s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes twinkle{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
+
+/* buttons: primary = oak, secondary = white */
+.stButton button, .stDownloadButton button{background:#8B5E3C;color:#FFFFFF;border:none;border-radius:999px;font-weight:800;min-height:46px;padding:0 22px;box-shadow:0 3px 0 #5E3B22}
+.stButton button p, .stDownloadButton button p{color:#FFFFFF !important;font-weight:800}
+.stButton button:hover{background:#9A6943;color:#FFFFFF}
+.stButton button[kind="secondary"]{background:#FFFFFF;color:#2A2420;border:2px solid #DDE0E4;box-shadow:none}
+.stButton button[kind="secondary"] p{color:#2A2420 !important}
+
+/* inputs and expanders */
+div[data-baseweb="select"] > div{border-radius:999px !important;border:3px solid #DDE0E4 !important;background:#FFFFFF !important}
+[data-testid="stExpander"]{background:#FFFFFF;border:3px solid #DDE0E4 !important;border-radius:22px !important}
+[data-testid="stExpander"] summary p{font-size:16px;font-weight:800}
+
+/* tables (components.table) */
+.tbl{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:18px;overflow:hidden;overflow-x:auto;margin:14px 0 6px}
+.tbl table{width:100%;border-collapse:collapse;font-size:15px}
+.tbl th{text-align:left;background:#F4F5F7;color:#565B62;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;padding:10px 14px}
+.tbl td{padding:11px 14px;border-top:2px solid #EEF0F2;color:#2A2420;white-space:nowrap}
+.tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl tr.hl td{background:#FBE7DA !important;font-weight:800;color:#5E3B22}
+.tbl th a.sorth{color:#565B62 !important;text-decoration:none !important;display:inline-flex;gap:6px;align-items:center}
+.tbl th a.sorth:hover{color:#8B5E3C !important}
+.tbl th a.sorth span{color:#8B5E3C;font-size:13px}
+.tbl tr:nth-child(even) td{background:#FBF8F4}

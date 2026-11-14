@@ -30,11 +30,19 @@ petbiz/
 │   ├── actions/
 │   │   └── action_log.py       # sent / dismissed alerts -> data/action_log.csv
 │   └── ui/
-│       ├── theme.py            # colours, CSS, icons
-│       ├── components.py       # tables, sidebar, headings, chat bubbles
+│       ├── theme.py            # colours, icons, CSS loaders
+│       ├── styles/
+│       │   ├── base.css        # universal CSS (every page)
+│       │   ├── frame.css       # sidebar + page headings (every page except Welcome)
+│       │   └── pages/          # one .css per page, same name as the page's .py
+│       │       ├── welcome.css
+│       │       ├── overview.css
+│       │       ├── insights.css
+│       │       └── alerts.css
+│       ├── components.py       # shared pieces: tables, sidebar, headings
 │       ├── charts.py           # SVG bar chart + sparklines
 │       ├── mascots.py          # Chrome & Oak (animated SVG)
-│       └── pages/              # one file per sidebar item
+│       └── pages/              # one .py per sidebar item
 │           ├── welcome.py
 │           ├── overview.py
 │           ├── data_list.py
@@ -55,5 +63,9 @@ petbiz/
 | Change a cleaning rule | `chrome_oak/data/cleaning.py` (re-run: `python -m chrome_oak.data.cleaning`) |
 | Change a KPI, chart or insight | `chrome_oak/analysis/overview.py` or `insights.py` |
 | Change an alert rule or its slider range | `chrome_oak/analysis/detections.py` (`detect_*` and `ALERT_RULES`) |
-| Change how a page looks | `chrome_oak/ui/pages/<page>.py` |
-| Add a page | new file in `chrome_oak/ui/pages/`, then add it to `PAGES` (components.py) and `ROUTES` (app.py) |
+| Change how a page looks | `chrome_oak/ui/pages/<page>.py` and `chrome_oak/ui/styles/pages/<page>.css` (only that page changes) |
+| Change something on every page | `chrome_oak/ui/styles/base.css` or `chrome_oak/ui/components.py` |
+| Add a page | `chrome_oak/ui/pages/<name>.py` with a `render(ctx)` function (+ optional `styles/pages/<name>.css`), then one line in `PAGES` in `app.py` |
+
+Each page's `render()` starts with `inject_page_css(__file__)`, which loads the CSS file
+with the same name from `styles/pages/`. Pages never import each other, so two people can work on two pages without conflicts.

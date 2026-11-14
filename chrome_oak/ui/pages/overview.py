@@ -5,11 +5,20 @@ import streamlit as st
 from chrome_oak.analysis import get_focus, get_insights, get_kpis
 from chrome_oak.config import ASOF
 from chrome_oak.ui.charts import sparkline
-from chrome_oak.ui.components import esc, html, insight_card, section
-from chrome_oak.ui.theme import DAISY, MUT, OAK, SPARK
+from chrome_oak.ui.components import esc, html, section
+from chrome_oak.ui.theme import DAISY, MUT, OAK, SPARK, inject_page_css
+
+
+def insight_card(n, x):
+    return (f'<div class="card"><span class="pill">Insight {n}</span>'
+            f'<div style="font-size:20px;font-weight:700;margin:10px 0 4px">{esc(x["title"])}</div>'
+            f'<div class="lbl">What happened</div><p>{esc(x["what"])}</p>'
+            f'<div class="lbl">Why it matters</div><p>{esc(x["why"])}</p>'
+            f'<div class="lbl">What to do</div><p>{esc(x["todo"])}</p></div>')
 
 
 def render(ctx):
+    inject_page_css(__file__)
     html(
         '<div class="banner"><div class="ring"></div>'
         + SPARK.format(pos="top:22px;right:34%", s=22) + SPARK.format(pos="bottom:18px;left:48%", s=16)

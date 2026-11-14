@@ -13,7 +13,7 @@ import streamlit as st
 
 from chrome_oak.actions import action_log
 from chrome_oak.analysis import detect_issues
-from chrome_oak.ui.components import PAGES, sidebar
+from chrome_oak.ui.components import sidebar
 from chrome_oak.ui.mascots import show_pets
 from chrome_oak.ui.pages import action_log as log_page
 from chrome_oak.ui.pages import alerts, data_list, insights, overview, welcome
@@ -22,13 +22,16 @@ from chrome_oak.ui.theme import inject_frame, inject_theme
 st.set_page_config(page_title="Chrome & Oak · Health Check", page_icon="💼", layout="wide")
 inject_theme()
 
-ROUTES = {
-    "overview": overview.render,
-    "data": data_list.render,
-    "insights": insights.render,
-    "alerts": alerts.render,
-    "log": log_page.render,
-}
+# The one list of pages: (query-string id, sidebar icon, sidebar label, page module).
+# To add a page: create chrome_oak/ui/pages/<name>.py (+ optional <name>.css) and add one line here.
+PAGES = [
+    ("overview", "home", "Overview", overview),
+    ("data", "list", "Data list", data_list),
+    ("insights", "chart", "Insights", insights),
+    ("alerts", "bell", "Alerts", alerts),
+    ("log", "log", "Action log", log_page),
+]
+ROUTES = {pid: module.render for pid, _, _, module in PAGES}
 
 page = st.query_params.get("page", "welcome")
 if page not in ROUTES:
@@ -41,7 +44,7 @@ issues = detect_issues()
 open_issues = [i for i in issues if len(i["rows"]) and not action_log.is_dismissed(i["id"], log)]
 
 inject_frame()
-sidebar(page, len(open_issues))
+sidebar([(pid, ic, label) for pid, ic, label, _ in PAGES], page, len(open_issues))
 ROUTES[page]({"issues": issues, "open_issues": open_issues})
 
 # Chrome & Oak floating in the bottom-right corner, talking about the biggest open alert

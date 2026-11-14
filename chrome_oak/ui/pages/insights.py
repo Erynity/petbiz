@@ -4,7 +4,16 @@ import streamlit as st
 
 from chrome_oak.analysis import get_charts, get_data, get_insights
 from chrome_oak.ui.charts import bar_chart_svg
-from chrome_oak.ui.components import esc, html, page_head, section, table, talk
+from chrome_oak.ui.components import esc, html, page_head, section, table
+from chrome_oak.ui.mascots import mascot_svg
+from chrome_oak.ui.theme import inject_page_css
+
+
+def talk(who, mood, label, text):
+    """A mascot with a speech bubble. who: "chrome" (analyst) or "oak" (advisor)."""
+    side = "oak" if who == "oak" else "chrome"
+    return (f'<div class="talk {side}"><span class="av">{mascot_svg(who, mood, 74)}</span>'
+            f'<div class="bubble"><div class="k">{label}</div>{text}</div></div>')
 
 
 def _explain(x):
@@ -16,6 +25,7 @@ def _explain(x):
 
 
 def render(ctx):
+    inject_page_css(__file__)
     page_head("Insights", "The patterns, problems and opportunities we found. One finding per section.")
     regions = sorted(get_data()["region"].dropna().astype(str).unique())
     region = st.selectbox("Show data for", ["All regions"] + regions)

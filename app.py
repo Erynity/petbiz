@@ -1,211 +1,383 @@
-"""PetBiz – UI prototype for Hack2theFuture (Business track, Option B: Chrome & Oak).
+"""Chrome & Oak – business health check (Hack2theFuture, Business track, Option B).
 
-Everything below runs on SAMPLE DATA so the UI can be built before the real
-dataset drops at 12:00. When the real data is ready, replace get_sample_data()
-with functions from analysis.py.
+Two pages, matching the approved mockup:
+  1. Welcome page  -> "Open the dashboard" button
+  2. Dashboard     -> chrome sidebar, banner, KPIs, charts, data prep, insights, alerts
+
+This file only DISPLAYS results. The data work lives in analysis.py (teammate).
+Until analysis.py has these functions, clearly-labelled placeholders are shown:
+
+    get_focus()            -> str, the one problem we chose, in one sentence
+    get_kpis()             -> list of dicts {"label", "value", "delta"}
+    get_charts()           -> list of dicts {"title", "caption", "data": DataFrame, "kind": "line"|"bar"}
+    get_prep_steps()       -> list of dicts {"what", "rows", "why"}
+    get_insights()         -> list of dicts {"title", "what", "why", "todo"}
+    detect_issues(days)    -> list of dicts {"name", "severity", "rule", "rows": DataFrame,
+                                             "found", "actions": [str], "notify"}
+                              `days` comes from the slider (Simulation bonus).
 
 Run with:  streamlit run app.py
 """
 
-from datetime import date
-
+import altair as alt
 import pandas as pd
 import streamlit as st
 
-from pet import pet_avatar, show_pet
+from pet import MASCOT_CSS, mascot_svg, mascots_pair
 
-st.set_page_config(page_title="PetBiz", page_icon="🐱", layout="wide")
-
-TODAY = date(2026, 11, 14)
+st.set_page_config(page_title="Chrome & Oak · Health Check", page_icon="💼", layout="wide")
 
 # ---------------------------------------------------------------------------
-# Theme (lavender / cream Y2K)
+# 1. Connect to analysis.py (placeholders until it's ready)
 # ---------------------------------------------------------------------------
-THEME_CSS = """
+try:
+    from analysis import detect_issues, get_charts, get_focus, get_insights, get_kpis, get_prep_steps
+
+    USING_PLACEHOLDERS = False
+except ImportError:
+    USING_PLACEHOLDERS = True
+
+    def get_focus():
+        return "[The one problem we chose, in one sentence]"
+
+    def get_kpis():
+        return [
+            {"label": "Revenue", "value": "$ —", "delta": "— vs last year"},
+            {"label": "Gross margin", "value": "— %", "delta": "— pts vs last year"},
+            {"label": "Overdue invoices", "value": "$ —", "delta": "— invoices"},
+            {"label": "Return rate", "value": "— %", "delta": "— of orders"},
+        ]
+
+    def get_charts():
+        months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]
+        line = pd.DataFrame({"Revenue": [10, 11, 12, 13, 14, 15], "Cash collected": [9, 9, 9, 9, 9, 9]}, index=months)
+        bars = pd.DataFrame({"Avg discount %": [4, 5, 6, 9]}, index=["Q1", "Q2", "Q3", "Q4"])
+        return [
+            {"title": "Revenue vs. cash collected", "caption": "Placeholder shape", "data": line, "kind": "line"},
+            {"title": "Average discount by quarter", "caption": "Placeholder shape", "data": bars, "kind": "bar"},
+        ]
+
+    def get_prep_steps():
+        return [
+            {"what": "Removed duplicate orders", "rows": "— rows", "why": "So the same sale isn't counted twice."},
+            {"what": "Fixed dates and amounts stored as text", "rows": "— rows", "why": "So we can sort by date and add up dollars."},
+            {"what": "Handled missing values", "rows": "— rows", "why": "[What we did, and why]"},
+            {"what": "Joined orders, customers and returns", "rows": "3 files → 1", "why": "So each order shows its customer, region, rep and returns."},
+        ]
+
+    def get_insights():
+        return [
+            {"title": "Insight title", "what": "Filled in once we have the data.", "why": "Filled in once we have the data.", "todo": "Filled in once we have the data."},
+            {"title": "Insight title", "what": "Filled in once we have the data.", "why": "Filled in once we have the data.", "todo": "Filled in once we have the data."},
+        ]
+
+    def detect_issues(days=30):
+        rows = pd.DataFrame({"customer": ["[Customer A]", "[Customer B]"], "region": ["[Region]", "[Region]"], "detail": ["—", "—"]})
+        return [
+            {"name": "customers over their credit limit", "severity": "High",
+             "rule": f"owes more than their credit limit AND is {days}+ days late",
+             "rows": rows, "found": "[Customer A] owes too much",
+             "actions": ["New orders paused", "Reminder email written", "[Account rep] notified"],
+             "notify": "Account rep"},
+            {"name": "long-time customers gone quiet", "severity": "Low",
+             "rule": "ordered every quarter before, nothing in the last 90 days",
+             "rows": rows.head(1), "found": "[Customer B] stopped ordering",
+             "actions": ["Check-in task created", "Customer Success notified"],
+             "notify": "Customer Success"},
+        ]
+
+
+# ---------------------------------------------------------------------------
+# 2. Theme (Chrome-led: light grey, silver banner, oak highlights)
+# ---------------------------------------------------------------------------
+INK, MUT, LINE, OAK, OAKD = "#2A2420", "#565B62", "#DDE0E4", "#8B5E3C", "#5E3B22"
+
+CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Nunito:wght@400;600;700;800&display=swap');
-.stApp{background:#FFF8F0}
-html, body, [class*="css"], .stMarkdown, p, li, label{font-family:'Nunito',sans-serif;color:#3A2350}
-h1, h2, h3{font-family:'Alfa Slab One',serif !important;font-weight:400 !important;color:#3A2350 !important}
-.block-container{padding-top:1.5rem;padding-bottom:10rem;max-width:1150px}
-[data-testid="stMetric"]{background:#FFFFFF;border:3px solid #E4D6F5;border-radius:24px;padding:18px 20px}
-[data-testid="stMetricLabel"] p{font-weight:700;color:#6B5A80}
-[data-testid="stMetricValue"]{font-family:'Alfa Slab One',serif;color:#3A2350}
-.banner{position:relative;overflow:hidden;background:#C9B6E4;border-radius:28px 28px 0 0;padding:34px 36px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
-.banner h1{margin:0;font-size:46px;line-height:1.05;color:#FFFFFF !important;text-shadow:0 3px 0 #8E6FC2}
-.banner p{margin:8px 0 0;font-size:18px;font-weight:700}
-.banner .ring{position:absolute;width:520px;height:520px;border-radius:50%;border:40px solid #D6C6EC;top:-330px;right:-120px}
-.banner .avatar{position:relative;width:170px;height:170px;border-radius:50%;background:#F7C6D9;border:6px solid #FFFFFF;display:flex;align-items:center;justify-content:center}
-.checker{height:28px;border-radius:0 0 28px 28px;margin-bottom:24px;background-image:repeating-conic-gradient(#E4D6F5 0 25%, #FFFFFF 0 50%);background-size:28px 28px}
-.step{display:inline-block;background:#3A2350;color:#FFFFFF;font-weight:800;font-size:13px;letter-spacing:1px;padding:4px 12px;border-radius:999px;margin-bottom:6px}
-.card{background:#FFFFFF;border:3px solid #E4D6F5;border-radius:24px;padding:20px 22px;height:100%}
-.card h4{margin:0 0 10px;font-size:19px;font-weight:800;color:#3A2350}
-.card .label{font-size:13px;font-weight:800;color:#8E6FC2;text-transform:uppercase;letter-spacing:1px;margin-top:10px}
-.card p{margin:2px 0 0;font-size:16px;line-height:1.5}
-.sample{background:#FDE3EC;border-radius:999px;padding:6px 14px;font-weight:800;font-size:13px;display:inline-block;margin-bottom:10px}
+.stApp{background:#F4F5F7}
+html, body, .stMarkdown, p, li, label, button, input{font-family:'Nunito',sans-serif;color:#2A2420}
+h1, h2, h3{font-family:'Alfa Slab One',serif !important;font-weight:400 !important;color:#2A2420 !important}
+.block-container{padding-top:1.4rem;padding-bottom:4rem;max-width:1180px}
+header[data-testid="stHeader"]{background:transparent}
+
+/* sidebar = brushed chrome */
+section[data-testid="stSidebar"]{background:linear-gradient(180deg,#F1F3F5 0%,#D9DCE0 55%,#C9CDD2 100%);border-right:1px solid #B9BFC6}
+section[data-testid="stSidebar"] *{color:#2A2420}
+.logo{display:flex;align-items:center;gap:8px;font-family:'Alfa Slab One',serif;font-size:21px;color:#5E3B22 !important;margin:4px 0 18px}
+.navi{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:999px;font-weight:800;font-size:15px;margin-bottom:4px}
+.navi.on{background:#FFFFFF;color:#5E3B22 !important;box-shadow:0 2px 6px rgba(42,36,32,.12)}
+.navi .badge{margin-left:auto;background:#8B5E3C;color:#FFFFFF !important;font-size:12px;padding:1px 9px;border-radius:999px}
+.duty{background:#FFFFFF;border:3px solid #E6CDAE;border-radius:24px;padding:14px;text-align:center;margin-top:24px}
+.duty b{display:block;font-size:14px;margin-top:4px}
+.duty span{font-size:13px;color:#565B62}
+
+/* banner */
+.banner{position:relative;overflow:hidden;background:#C9CDD2;border-radius:28px 28px 0 0;padding:30px 32px;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+.banner .ring{position:absolute;width:520px;height:520px;border-radius:50%;border:40px solid #D9DCE0;top:-330px;right:-100px}
+.banner h1{position:relative;margin:0;font-size:44px;line-height:1.05;color:#5E3B22 !important;text-shadow:0 3px 0 #FFFFFF}
+.banner p{position:relative;margin:8px 0 0;font-size:17px;font-weight:700}
+.focus{position:relative;display:inline-block;background:#FFFFFF;border-radius:14px;padding:8px 14px;font-size:15px;font-weight:600;margin-top:10px}
+.focus b{color:#8B5E3C}
+.checked{position:relative;background:#FFFFFF;border-radius:999px;padding:8px 14px;font-size:14px;font-weight:800;color:#5E3B22;margin-right:90px}
+.checker{height:26px;border-radius:0 0 28px 28px;margin-bottom:18px;background-image:repeating-conic-gradient(#DDE0E4 0 25%, #FFFFFF 0 50%);background-size:26px 26px}
+.daisy{position:absolute;top:-14px;right:18px;animation:spin 14s linear infinite}
+.sparkle{position:absolute;animation:twinkle 2.4s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes twinkle{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
+
+/* cards */
+.card{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:24px;padding:20px 22px;margin-bottom:16px}
+.kpi .lab{font-size:14px;font-weight:600;color:#565B62}
+.kpi .val{font-size:28px;font-weight:600;letter-spacing:-.3px;white-space:nowrap;margin-top:4px}
+.kpi .del{font-size:13px;font-weight:600;color:#8B5E3C;white-space:nowrap}
+.ttl{font-size:18px;font-weight:800}
+.sub{font-size:14px;color:#565B62;margin-bottom:6px}
+.slab{font-family:'Alfa Slab One',serif;font-size:22px}
+.pill{display:inline-block;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#FFFFFF;background:#8B5E3C;border-radius:999px;padding:3px 12px}
+.lbl{font-size:12px;font-weight:800;color:#8B5E3C;text-transform:uppercase;letter-spacing:1px;margin-top:8px}
+.card p{margin:2px 0 6px;font-size:15px;line-height:1.5;color:#565B62}
+.prep{display:grid;grid-template-columns:1fr auto;gap:12px;padding:10px 0;border-top:2px solid #EEF0F2}
+.prep .rows{font-size:13px;font-weight:700;color:#565B62;background:#EEF0F2;border-radius:999px;padding:3px 10px;white-space:nowrap;align-self:start}
+
+/* alerts: 3-step story */
+.sev{font-size:13px;font-weight:800;border-radius:999px;padding:4px 12px;margin-right:8px}
+.sev.High{color:#8B5E3C;background:#F5E9DA}.sev.Medium{color:#5E3B22;background:#EFE4D6}.sev.Low{color:#565B62;background:#EEF0F2}
+.step3{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:22px;padding:14px 16px;height:100%}
+.step3.oak{border-color:#E6CDAE}
+.step3 .who{display:flex;align-items:center;gap:10px}
+.step3 .k{font-size:12px;font-weight:800;color:#565B62;text-transform:uppercase;letter-spacing:1px}
+.step3.oak .k{color:#8B5E3C}
+.step3 .h{font-size:16px;font-weight:800}
+.step3 .done{font-size:15px;margin:4px 0}
+[data-testid="stExpander"]{background:#FFFFFF;border:3px solid #DDE0E4 !important;border-radius:22px !important}
+[data-testid="stExpander"] summary p{font-size:16px;font-weight:800}
+
+/* buttons */
+.stButton button, .stDownloadButton button{background:#8B5E3C;color:#FFFFFF;border:none;border-radius:999px;font-weight:800;min-height:46px;padding:0 22px;box-shadow:0 3px 0 #5E3B22}
+.stButton button p, .stDownloadButton button p{color:#FFFFFF !important;font-weight:800}
+.stButton button:hover{background:#9A6943;color:#FFFFFF}
+.stButton button[kind="secondary"].ghost{background:#FFFFFF}
+
+/* welcome */
+.hero{position:relative;overflow:hidden;background:#C9CDD2;border-radius:28px 28px 0 0;padding:44px 40px;display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center}
+.hero .ring{position:absolute;width:700px;height:700px;border-radius:50%;border:50px solid #D9DCE0;top:-420px;right:-160px}
+.hero .hi{position:relative;display:inline-block;background:#FFFFFF;border-radius:18px 18px 18px 4px;padding:10px 16px;font-size:16px;font-weight:700}
+.hero h1{position:relative;margin:18px 0 10px;font-size:52px;line-height:1.05;color:#5E3B22 !important;text-shadow:0 3px 0 #FFFFFF}
+.hero p{position:relative;margin:0;font-size:18px;font-weight:600;max-width:480px}
+.stage{position:relative;background:radial-gradient(circle at 50% 40%,#FFFFFF,#EEF0F2 75%);border:5px solid #FFFFFF;border-radius:32px;padding:18px 18px 6px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:linear-gradient(180deg,#F1F3F5,#D9DCE0);border:1px solid #B9BFC6;border-radius:999px;padding:8px 8px 8px 20px;margin-bottom:22px}
+.topbar .t{font-size:14px;font-weight:700;color:#565B62;background:#FFFFFF;border-radius:999px;padding:8px 14px}
+.tbl{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:18px;overflow:hidden;overflow-x:auto;margin:14px 0 6px}
+.tbl table{width:100%;border-collapse:collapse;font-size:15px}
+.tbl th{text-align:left;background:#F4F5F7;color:#565B62;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;padding:10px 14px}
+.tbl td{padding:11px 14px;border-top:2px solid #EEF0F2;color:#2A2420}
+.tbl tr:nth-child(even) td{background:#FBF8F4}
+.tag{display:inline-block;background:#FFFFFF;border:2px dashed #B9BFC6;border-radius:999px;padding:5px 14px;font-weight:700;font-size:13px;color:#565B62;margin-bottom:12px}
 </style>
 """
-st.markdown(THEME_CSS, unsafe_allow_html=True)
+st.markdown(CSS + MASCOT_CSS, unsafe_allow_html=True)
+
+LEAF = ('<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B5E3C" stroke-width="2" '
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20A7 7 0 0 1 4 13c0-6 7-10 16-10-1 9-5 16-9 17z"/>'
+        '<path d="M4 21c4-6 8-9 12-11"/></svg>')
+DAISY = ('<svg class="daisy" width="{s}" height="{s}" viewBox="0 0 100 100" aria-hidden="true"><g fill="#FFFFFF">'
+         '<ellipse cx="50" cy="20" rx="11" ry="20"/><ellipse cx="50" cy="80" rx="11" ry="20"/><ellipse cx="20" cy="50" rx="20" ry="11"/>'
+         '<ellipse cx="80" cy="50" rx="20" ry="11"/><ellipse cx="29" cy="29" rx="11" ry="20" transform="rotate(-45 29 29)"/>'
+         '<ellipse cx="71" cy="71" rx="11" ry="20" transform="rotate(-45 71 71)"/><ellipse cx="71" cy="29" rx="11" ry="20" transform="rotate(45 71 29)"/>'
+         '<ellipse cx="29" cy="71" rx="11" ry="20" transform="rotate(45 29 71)"/></g><circle cx="50" cy="50" r="14" fill="#D4A84A"/></svg>')
+SPARK = ('<svg class="sparkle" style="{pos}" width="{s}" height="{s}" viewBox="0 0 24 24" aria-hidden="true">'
+         '<path d="M12 0 L14 10 L24 12 L14 14 L12 24 L10 14 L0 12 L10 10 Z" fill="#FFFFFF"/></svg>')
+
+
+def html(s):
+    st.markdown(s, unsafe_allow_html=True)
+
+
+def table(df):
+    """Plain, styled HTML table (no interactive grid)."""
+    head = "".join(f"<th>{c}</th>" for c in df.columns)
+    body = "".join("<tr>" + "".join(f"<td>{v}</td>" for v in row) + "</tr>" for row in df.astype(str).values)
+    html(f'<div class="tbl"><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>')
+
+
+def rerun():
+    (getattr(st, "rerun", None) or st.experimental_rerun)()
 
 
 # ---------------------------------------------------------------------------
-# DATA – sample only. Swap for analysis.py once the real CSV is in data/.
+# 3. Welcome page
 # ---------------------------------------------------------------------------
-def get_sample_data():
-    invoices = pd.DataFrame(
-        {
-            "invoice_id": ["INV-101", "INV-102", "INV-103", "INV-104", "INV-105", "INV-106", "INV-107", "INV-108"],
-            "customer": ["Customer A", "Customer B", "Customer A", "Customer C", "Customer D", "Customer B", "Customer E", "Customer C"],
-            "amount": [1200, 850, 2400, 600, 3100, 950, 400, 1800],
-            "due_date": pd.to_datetime(
-                ["2026-08-15", "2026-09-01", "2026-09-20", "2026-10-05", "2026-10-10", "2026-10-25", "2026-11-01", "2026-11-10"]
-            ),
-            "paid": [False, True, False, True, False, False, True, False],
-        }
+if "started" not in st.session_state:
+    st.session_state.started = False
+
+if not st.session_state.started:
+    html(
+        f'<div class="topbar"><span class="logo" style="margin:0">{LEAF} Chrome &amp; Oak</span>'
+        '<span class="t">Office Supply · Business health check</span></div>'
+        '<div class="hero"><div class="ring"></div>'
+        + SPARK.format(pos="top:26px;left:46%", s=26) + SPARK.format(pos="bottom:30px;left:6%", s=18)
+        + DAISY.format(s=96)
+        + '<div><div class="hi">Hi! We\'re Chrome &amp; Oak. Let\'s check on the business.</div>'
+        "<h1>Revenue is up.<br>So why is cash tight?</h1>"
+        "<p>We dig through the orders, returns and customers, then act on what needs attention.</p></div>"
+        f'<div class="stage">{mascots_pair("happy", "happy", 150, walk_in=True)}</div>'
+        '</div><div class="checker"></div>'
     )
-    invoices["days_past_due"] = (pd.Timestamp(TODAY) - invoices["due_date"]).dt.days.clip(lower=0)
-
-    monthly = pd.DataFrame(
-        {
-            "month": ["Jun", "Jul", "Aug", "Sep", "Oct", "Nov"],
-            "Revenue": [10, 11, 12, 13, 14, 15],
-            "Cash collected": [9, 9, 9, 8, 8, 7],
-        }
-    ).set_index("month")
-    return invoices, monthly
-
-
-invoices, monthly = get_sample_data()
+    steps = [
+        ("Chrome detects", "Reads every order, return and customer to spot what's wrong."),
+        ("Oak decides", "Picks the problem worth fixing first, with the numbers to back it."),
+        ("Oak acts", "Pauses risky orders, drafts reminders and tells the right person."),
+    ]
+    for col, (t, d) in zip(st.columns(3), steps):
+        col.markdown(f'<div class="card"><div class="ttl">{t}</div><p>{d}</p></div>', unsafe_allow_html=True)
+    if st.button("Open the dashboard  →"):
+        st.session_state.started = True
+        rerun()
+    st.stop()
 
 
 # ---------------------------------------------------------------------------
-# DETECT
+# 4. Static charts (no scroll-to-zoom)
 # ---------------------------------------------------------------------------
-def detect_overdue(df):
-    # TODO (Eryne): this is the detection YOU write by hand (hackathon rule).
-    # Placeholder rule so the UI works: unpaid AND more than 30 days past due.
-    return df[(~df["paid"]) & (df["days_past_due"] > 30)]
-
-
-def detect_slow_payers(df):
-    # Customers whose unpaid invoices are, on average, more than 15 days late.
-    unpaid = df[~df["paid"]]
-    avg_late = unpaid.groupby("customer")["days_past_due"].mean()
-    return avg_late[avg_late > 15].sort_values(ascending=False)
-
-
-overdue = detect_overdue(invoices)
-slow_payers = detect_slow_payers(invoices)
-
-total_billed = invoices["amount"].sum()
-unpaid_total = invoices.loc[~invoices["paid"], "amount"].sum()
-overdue_total = overdue["amount"].sum()
-overdue_share = overdue_total / total_billed if total_billed else 0
-
-# Pet mood decided from the data
-if overdue_share < 0.05:
-    mood, pet_message = "happy", "Cash is coming in on time. Great job!"
-elif overdue_share < 0.20:
-    mood, pet_message = "worried", f"Hmm... {len(overdue)} invoices are over 30 days late. Want me to draft reminders?"
-else:
-    mood, pet_message = "sad", f"Oh no! ${overdue_total:,.0f} is stuck in overdue invoices. That's why cash feels tight!"
+def draw_chart(chart):
+    df = chart["data"].reset_index()
+    x = df.columns[0]
+    ys = list(df.columns[1:])
+    long = df.melt(id_vars=x, value_vars=ys, var_name="_series", value_name="_value")
+    x_type = "T" if pd.api.types.is_datetime64_any_dtype(long[x]) else "N"
+    base = alt.Chart(long)
+    mark = (base.mark_line(point=True, strokeWidth=3) if chart.get("kind") == "line"
+            else base.mark_bar(cornerRadiusTopLeft=8, cornerRadiusTopRight=8))
+    enc = dict(
+        x=alt.X(f"{x}:{x_type}", sort=None, title=None, axis=alt.Axis(labelAngle=0)),
+        y=alt.Y("_value:Q", title=None),
+        color=alt.Color("_series:N", scale=alt.Scale(range=[OAK, "#9AA0A8", "#D4A84A", OAKD]),
+                        legend=alt.Legend(orient="top", title=None) if len(ys) > 1 else None),
+        tooltip=[alt.Tooltip(f"{x}:{x_type}", title=str(x)), alt.Tooltip("_series:N", title="series"),
+                 alt.Tooltip("_value:Q", title="value", format=",.0f")],
+    )
+    if chart.get("kind") != "line" and len(ys) > 1:
+        enc["xOffset"] = "_series:N"
+    st.altair_chart(
+        mark.encode(**enc).properties(height=260).configure_view(strokeWidth=0)
+        .configure_axis(labelColor=MUT, gridColor="#EEF0F2", domainColor=LINE, labelFont="Nunito", labelFontSize=12),
+        use_container_width=True,
+    )
 
 
 # ---------------------------------------------------------------------------
-# PAGE
+# 5. Dashboard
 # ---------------------------------------------------------------------------
-st.markdown(
+# Simulation bonus: threshold slider (in the sidebar so it's always reachable)
+with st.sidebar:
+    html(f'<div class="logo">{LEAF} Chrome &amp; Oak</div>')
+    days = st.slider("Flag invoices after (days late)", 15, 90, 30, 5)
+
+issues = detect_issues(days)
+flagged = [i for i in issues if len(i["rows"]) > 0]
+
+with st.sidebar:
+    html(
+        '<div class="navi on">Overview</div>'
+        f'<div class="navi">Alerts<span class="badge">{len(flagged)}</span></div>'
+        f'<div class="duty"><div style="display:flex;justify-content:center">{mascots_pair("happy", "happy", 72)}</div>'
+        "<b>Your analysts are on duty</b><span>Chrome checks the data. Oak handles the follow-ups.</span></div>"
+    )
+    if st.button("← Back to welcome"):
+        st.session_state.started = False
+        rerun()
+
+if USING_PLACEHOLDERS:
+    html('<span class="tag">Placeholders · waiting for analysis.py</span>')
+
+# Banner
+html(
     '<div class="banner"><div class="ring"></div>'
-    '<div style="position:relative"><h1>How\'s cash at Chrome &amp; Oak?</h1>'
-    "<p>Revenue is up, but cash is tight. Let's find out where it's stuck.</p></div>"
-    f'<div class="avatar">{pet_avatar(mood, 120)}</div>'
-    '</div><div class="checker"></div>',
-    unsafe_allow_html=True,
+    + SPARK.format(pos="top:22px;right:34%", s=22) + SPARK.format(pos="bottom:18px;left:48%", s=16)
+    + DAISY.format(s=84)
+    + "<div><h1>How's business?</h1>"
+    "<p>Revenue is up, but cash is tight. Here's what's driving the gap.</p>"
+    f'<div class="focus"><b>Our focus:</b> {get_focus()}</div></div>'
+    '<span class="checked">✓ Data checked today</span>'
+    '</div><div class="checker"></div>'
 )
-st.markdown('<span class="sample">SAMPLE DATA – real data loads at 12:00</span>', unsafe_allow_html=True)
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Total billed", f"${total_billed:,.0f}")
-c2.metric("Still unpaid", f"${unpaid_total:,.0f}")
-c3.metric("Over 30 days late", f"${overdue_total:,.0f}")
-c4.metric("Overdue invoices", len(overdue))
-
-# --- Charts ---
-st.markdown('<span class="step">STEP 1 · DATA</span>', unsafe_allow_html=True)
-st.subheader("Revenue vs. cash collected")
-left, right = st.columns(2)
-with left:
-    st.caption("Revenue keeps growing, but cash collected doesn't follow ($ thousands)")
-    st.line_chart(monthly, color=["#9B7FCB", "#F08BB4"])
-with right:
-    st.caption("Unpaid money by customer ($)")
-    by_customer = invoices[~invoices["paid"]].groupby("customer")["amount"].sum().sort_values(ascending=False)
-    st.bar_chart(by_customer, color="#9B7FCB")
-
-# --- Detect ---
-st.markdown('<span class="step">STEP 2 · DETECT</span>', unsafe_allow_html=True)
-st.subheader("What we found")
-d1, d2 = st.columns(2)
-with d1:
-    st.markdown("**🚩 Detection 1: invoices over 30 days late**")
-    st.dataframe(
-        overdue[["invoice_id", "customer", "amount", "days_past_due"]],
-        use_container_width=True,
-        hide_index=True,
-    )
-with d2:
-    st.markdown("**🐢 Detection 2: slow-paying customers**")
-    st.dataframe(
-        slow_payers.rename("avg days late").reset_index(),
-        use_container_width=True,
-        hide_index=True,
-    )
-
-# --- Decide ---
-st.markdown('<span class="step">STEP 3 · DECIDE</span>', unsafe_allow_html=True)
-st.subheader("Insights")
-i1, i2 = st.columns(2)
-with i1:
-    st.markdown(
-        '<div class="card"><h4>Cash is stuck in late invoices</h4>'
-        '<div class="label">What happened</div><p>[Insight from real data]</p>'
-        '<div class="label">Why it matters</div><p>[Impact on cash]</p>'
-        '<div class="label">What to do</div><p>[Action]</p></div>',
-        unsafe_allow_html=True,
-    )
-with i2:
-    st.markdown(
-        '<div class="card"><h4>A few customers cause most delays</h4>'
-        '<div class="label">What happened</div><p>[Insight from real data]</p>'
-        '<div class="label">Why it matters</div><p>[Impact on cash]</p>'
-        '<div class="label">What to do</div><p>[Action]</p></div>',
+# KPIs
+kpis = get_kpis()
+for col, k in zip(st.columns(len(kpis)), kpis):
+    col.markdown(
+        f'<div class="card kpi"><div class="lab">{k["label"]}</div><div class="val">{k["value"]}</div>'
+        f'<div class="del">{k["delta"]}</div></div>',
         unsafe_allow_html=True,
     )
 
-# --- Act (automation) ---
-st.markdown('<span class="step">STEP 4 · ACT</span>', unsafe_allow_html=True)
-st.subheader("Automation: payment reminders")
-st.write("Every overdue invoice automatically gets a reminder draft, ready to send.")
+# Charts (DETECT)
+charts = get_charts()
+for col, ch in zip(st.columns([2, 1]) if len(charts) == 2 else st.columns(len(charts)), charts):
+    with col:
+        with st.container(border=True):
+            html(f'<div class="ttl">{ch["title"]}</div><div class="sub">{ch["caption"]}</div>')
+            draw_chart(ch)
 
-reminders = []
-for _, row in overdue.iterrows():
-    text = (
-        f"Hi {row['customer']},\n\n"
-        f"This is a friendly reminder that invoice {row['invoice_id']} for "
-        f"${row['amount']:,.0f} is {row['days_past_due']} days past due. "
-        "Could you let us know when we can expect payment?\n\nThank you!\nChrome & Oak"
+# Data prep (DATA)
+prep = "".join(
+    f'<div class="prep"><div><div class="ttl" style="font-size:15px">✓ {p["what"]}</div>'
+    f'<p style="margin:2px 0 0"><b style="color:#8B5E3C">Why:</b> {p["why"]}</p></div>'
+    f'<span class="rows">{p["rows"]}</span></div>'
+    for p in get_prep_steps()
+)
+html(f'<div class="card"><div class="slab">How we prepared the data</div>'
+     f'<div class="sub">Every change we made before trusting a number</div>{prep}</div>')
+
+# Insights (DECIDE)
+ins = get_insights()
+for i, (col, x) in enumerate(zip(st.columns(len(ins)), ins), start=1):
+    col.markdown(
+        f'<div class="card"><span class="pill">Insight {i}</span>'
+        f'<div style="font-size:20px;font-weight:700;margin:10px 0 4px">{x["title"]}</div>'
+        f'<div class="lbl">What happened</div><p>{x["what"]}</p>'
+        f'<div class="lbl">Why it matters</div><p>{x["why"]}</p>'
+        f'<div class="lbl">What to do</div><p>{x["todo"]}</p></div>',
+        unsafe_allow_html=True,
     )
-    reminders.append({"invoice_id": row["invoice_id"], "customer": row["customer"], "message": text})
-    with st.expander(f"✉️ {row['invoice_id']} · {row['customer']} · {row['days_past_due']} days late"):
-        st.text(text)
 
-if reminders:
-    st.download_button(
-        "Download all reminders (CSV)",
-        pd.DataFrame(reminders).to_csv(index=False),
-        file_name="payment_reminders.csv",
-        mime="text/csv",
-    )
+# Alerts (ACT)
+html('<div class="slab" style="margin:8px 0 2px">Alerts inbox</div>'
+     f'<div class="sub">Triggered automatically when a condition is met · flagging after <b>{days} days</b></div>')
 
-# --- Floating pet (always last, so it sits on top) ---
-show_pet(mood, pet_message)
+log = []
+for n, issue in enumerate(issues):
+    count = len(issue["rows"])
+    with st.expander(f"{issue['severity']} · {count} {issue['name']}", expanded=(n == 0 and count > 0)):
+        if not count:
+            st.write("All clear, nothing to do.")
+            continue
+        c1, c2, c3 = st.columns(3)
+        c1.markdown(
+            f'<div class="step3"><div class="who"><span style="flex:none">{mascot_svg("chrome", "worried", 58)}</span>'
+            f'<div><div class="k">Step 1 · Chrome noticed</div><div class="h">{issue["found"]}</div></div></div>'
+            f'<p style="margin:8px 0 0;font-size:15px;color:#565B62">Rule: {issue["rule"]}.</p></div>',
+            unsafe_allow_html=True,
+        )
+        done = "".join(f'<div class="done">✓ {a}</div>' for a in issue["actions"])
+        c2.markdown(
+            f'<div class="step3 oak"><div class="who"><span style="flex:none">{mascot_svg("oak", "happy", 58)}</span>'
+            f'<div><div class="k">Step 2 · Oak took care of it</div><div class="h">{len(issue["actions"])} things done</div></div></div>'
+            f"{done}</div>",
+            unsafe_allow_html=True,
+        )
+        with c3:
+            html('<div class="step3"><div class="k">Step 3 · Your turn</div><div class="h">Review and send?</div></div>')
+            if st.button("Preview & send", key=f"send{n}"):
+                st.toast(f"Sent to {issue['notify']} ✓")
+            st.button("Not a problem, dismiss", key=f"dis{n}")
+        table(issue["rows"])
+        for a in issue["actions"]:
+            log.append({"condition": issue["name"], "records": count, "action": a, "sent to": issue["notify"]})
+
+if log:
+    with st.expander("View action log"):
+        log_df = pd.DataFrame(log)
+        table(log_df)
+        st.download_button("Download action log (CSV)", log_df.to_csv(index=False), "action_log.csv", "text/csv")

@@ -19,7 +19,7 @@ Until analysis.py has these functions, clearly-labelled placeholders are shown:
 Run with:  streamlit run app.py
 """
 
-import altair as alt
+
 import pandas as pd
 import streamlit as st
 
@@ -30,13 +30,8 @@ st.set_page_config(page_title="Chrome & Oak · Health Check", page_icon="💼", 
 # ---------------------------------------------------------------------------
 # 1. Connect to analysis.py (placeholders until it's ready)
 # ---------------------------------------------------------------------------
-try:
-    from analysis import detect_issues, get_charts, get_focus, get_insights, get_kpis, get_prep_steps
-
-    USING_PLACEHOLDERS = False
-except ImportError:
-    USING_PLACEHOLDERS = True
-
+USING_PLACEHOLDERS = True
+if True:  # placeholders first; real functions from analysis.py override them below
     def get_focus():
         return "[The one problem we chose, in one sentence]"
 
@@ -54,11 +49,32 @@ except ImportError:
         regions = pd.DataFrame({"margin": [0.33, 0.33, 0.32, 0.32, 0.16]},
                                index=["Quebec", "BC", "Prairies", "Ontario", "Atlantic"])
         return [
-            {"title": "Average discount by sales rep", "caption": "Atlantic rep highlighted", "data": reps,
+            {"title": "Average discount by sales rep", "caption": "Atlantic rep highlighted",
+             "desc": "How much off list price each rep gives on average. One rep stands far above the rest.", "data": reps,
              "kind": "bar", "format": "percent", "sort": True, "highlight": "R07", "x_title": "Sales rep"},
-            {"title": "Margin % by region", "caption": "Atlantic highlighted", "data": regions,
+            {"title": "Margin % by region", "caption": "Atlantic highlighted",
+             "desc": "Profit left after costs and discounts. Atlantic keeps about half of what other regions keep.", "data": regions,
              "kind": "bar", "format": "percent", "highlight": "Atlantic", "x_title": "Region"},
         ]
+
+    def get_data():
+        """The cleaned orders table, one row per order (placeholder sample)."""
+        import numpy as np
+        rng = np.random.default_rng(1)
+        n = 60
+        regions = rng.choice(["Atlantic", "Ontario", "Quebec", "BC", "Prairies"], n)
+        qty = rng.integers(1, 20, n)
+        price = rng.choice([45.0, 120.0, 226.0, 331.0, 636.0], n)
+        disc = np.where(regions == "Atlantic", rng.uniform(0.15, 0.3, n), rng.uniform(0.0, 0.12, n)).round(3)
+        return pd.DataFrame({
+            "order_id": [f"SO-{i:06d}" for i in range(n)],
+            "order_date": pd.date_range("2025-01-05", periods=n, freq="9D").date,
+            "customer_id": [f"C{rng.integers(1, 1200):04d}" for _ in range(n)],
+            "region": regions, "rep": rng.choice(["R01", "R02", "R07", "R09"], n),
+            "product": rng.choice(["Office Chair", "Monitor 27\"", "ErgoLift Standing Desk", "Wireless Mouse"], n),
+            "quantity": qty, "unit_price": price, "discount": disc,
+            "amount": (qty * price * (1 - disc)).round(2),
+        })
 
     def get_prep_steps():
         return [
@@ -89,6 +105,27 @@ except ImportError:
              "actions": ["Check-in task created", "Customer Success notified"],
              "notify": "Customer Success"},
         ]
+
+
+# Use each function from analysis.py as soon as it exists (the rest stay placeholders)
+_ALL = ("get_data", "get_focus", "get_kpis", "get_charts", "get_prep_steps", "get_insights", "detect_issues")
+_real, CONNECT_ERROR = [], ""
+try:
+    import importlib
+
+    import analysis as _an
+
+    importlib.reload(_an)  # always pick up the latest analysis.py without restarting
+    _real = [n for n in _ALL if hasattr(_an, n)]
+    for _n in _real:
+        globals()[_n] = getattr(_an, _n)
+except Exception as _e:  # show the problem on the page instead of failing silently
+    CONNECT_ERROR = f"{type(_e).__name__}: {_e}"
+USING_PLACEHOLDERS = len(_real) < len(_ALL)
+CONNECT_STATUS = (
+    f"analysis.py error → {CONNECT_ERROR}" if CONNECT_ERROR
+    else f"Connected: {', '.join(_real) or 'nothing yet'} · Still placeholders: {', '.join(n for n in _ALL if n not in _real) or 'none'}"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -232,18 +269,21 @@ def rerun():
 
 
 # ---------------------------------------------------------------------------
-# 3. Welcome page
+# 3. Pages: ?page=welcome (default) | overview | data | insights | alerts | prep
+#    Each sidebar link opens a real new page (no scrolling jumps).
 # ---------------------------------------------------------------------------
-if "started" not in st.session_state:
-    st.session_state.started = False
-_page = st.query_params.get("page") if hasattr(st, "query_params") else None
-if _page == "dashboard":
-    st.session_state.started = True
-elif _page == "welcome":
-    st.session_state.started = False
-    st.query_params.clear()
+import inspect
 
-if not st.session_state.started:
+from dashboard_view import I, bar_chart_svg, esc, sparkline
+
+PAGES = [("overview", "home", "Overview"), ("data", "log", "Data list"), ("insights", "chart", "Insights"),
+         ("alerts", "bell", "Alerts"), ("prep", "data", "Data prep")]
+page = st.query_params.get("page", "welcome") if hasattr(st, "query_params") else "welcome"
+if page not in {p for p, _, _ in PAGES}:
+    page = "welcome"
+
+# ---------------- Welcome ----------------
+if page == "welcome":
     html(
         f'<div class="topbar"><span class="logo" style="margin:0">{LEAF} Chrome &amp; Oak</span>'
         '<span class="t">Office Supply · Business health check</span></div>'
@@ -252,7 +292,8 @@ if not st.session_state.started:
         + DAISY.format(s=96)
         + '<div><div class="hi">Hi! We\'re Chrome &amp; Oak. Let\'s check on the business.</div>'
         "<h1>Revenue is up.<br>So why is cash tight?</h1>"
-        "<p>We dig through the orders, returns and customers, then act on what needs attention.</p></div>"
+        "<p>We dig through the orders, returns and customers, then act on what needs attention.</p>"
+        '<a class="go" href="?page=overview" target="_self">Open the dashboard →</a></div>'
         f'<div class="stage">{mascots_pair("happy", "happy", 150)}</div>'
         '</div><div class="checker"></div>'
     )
@@ -263,106 +304,195 @@ if not st.session_state.started:
     ]
     for col, (t, d) in zip(st.columns(3), steps):
         col.markdown(f'<div class="card"><div class="ttl">{t}</div><p>{d}</p></div>', unsafe_allow_html=True)
-    if st.button("Open the dashboard  →"):
-        st.session_state.started = True
-        st.query_params["page"] = "dashboard"
-        rerun()
     st.stop()
 
-
-# ---------------------------------------------------------------------------
-# 4. Static charts (no scroll-to-zoom)
-# ---------------------------------------------------------------------------
-def draw_chart(chart):
-    """Clean bar/line chart: value labels on top, one highlighted bar, no toolbar.
-
-    Optional keys in the chart dict:
-      "highlight": label(s) to colour oak, e.g. "R07" or ["Atlantic"]
-      "format":    "percent" (0.23 -> 23%), "dollar" or "number"
-      "sort":      True to sort bars from biggest to smallest
-    """
-    df = chart["data"].reset_index()
-    x = df.columns[0]
-    ys = list(df.columns[1:])
-    fmt = {"percent": ".0%", "dollar": "$,.0f"}.get(chart.get("format"), ",.0f")
-    axis_fmt = {"percent": ".0%", "dollar": "$,.0s"}.get(chart.get("format"), ",.0f")
-
-    if chart.get("kind") == "line":
-        long = df.melt(id_vars=x, value_vars=ys, var_name="_series", value_name="_value")
-        x_type = "T" if pd.api.types.is_datetime64_any_dtype(long[x]) else "N"
-        c = alt.Chart(long).mark_line(point=True, strokeWidth=3).encode(
-            x=alt.X(f"{x}:{x_type}", sort=None, title=None, axis=alt.Axis(labelAngle=0)),
-            y=alt.Y("_value:Q", title=None, axis=alt.Axis(format=axis_fmt)),
-            color=alt.Color("_series:N", scale=alt.Scale(range=[OAK, "#9AA0A8", "#D4A84A"]),
-                            legend=alt.Legend(orient="top", title=None)),
-            tooltip=[alt.Tooltip(f"{x}:{x_type}"), alt.Tooltip("_series:N", title="series"),
-                     alt.Tooltip("_value:Q", title="value", format=fmt)],
-        )
-    else:
-        y = ys[0]
-        df = df[[x, y]].copy()
-        if chart.get("sort"):
-            df = df.sort_values(y, ascending=False)
-        hl = chart.get("highlight") or []
-        hl = [hl] if isinstance(hl, str) else list(hl)
-        df["_hl"] = df[x].astype(str).isin([str(h) for h in hl])
-        order = list(df[x].astype(str))
-        base = alt.Chart(df).encode(x=alt.X(f"{x}:N", sort=order, title=chart.get("x_title"),
-                                            axis=alt.Axis(labelAngle=0, titleColor="#B9BFC6", titleFontWeight=600, ticks=False),
-                                            scale=alt.Scale(paddingInner=0.25)))
-        bars = base.mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3).encode(
-            y=alt.Y(f"{y}:Q", title=None, axis=alt.Axis(format=axis_fmt, tickCount=5)),
-            color=alt.condition("datum._hl", alt.value("#D9692B"), alt.value("#BFC3CB")),
-            tooltip=[alt.Tooltip(f"{x}:N"), alt.Tooltip(f"{y}:Q", format=fmt)],
-        )
-        labels = base.mark_text(dy=-8, fontSize=12, fontWeight=800, font="Nunito").encode(
-            y=f"{y}:Q", text=alt.Text(f"{y}:Q", format=fmt),
-            color=alt.condition("datum._hl", alt.value(INK), alt.value(INK)),
-        )
-        c = bars + labels
-    st.altair_chart(
-        c.properties(height=320, background="#FFFFFF", padding={"left": 16, "right": 16, "top": 20, "bottom": 12})
-        .configure_view(strokeWidth=0)
-        .configure_axis(labelColor=MUT, gridColor="#EEF0F2", domainColor=LINE, tickColor=LINE,
-                        labelFont="Nunito", labelFontSize=12, labelFontWeight=600),
-        use_container_width=True,
-        theme=None,  # stop Streamlit's dark mode from turning the chart black
-    )
-
-
-# ---------------------------------------------------------------------------
-# 5. Dashboard: one HTML page that matches the mockup exactly (dashboard_view.py)
-# ---------------------------------------------------------------------------
-import streamlit.components.v1 as components
-
-from dashboard_view import render_dashboard
-
+# ---------------- Shared dashboard frame ----------------
 html("""<style>
-header[data-testid="stHeader"], section[data-testid="stSidebar"], [data-testid="collapsedControl"]{display:none !important}
-.block-container{max-width:none !important;padding:0 !important}
-iframe{border:none;display:block}
+section[data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stSidebarCollapsedControl"]{display:none !important}
+.block-container{max-width:none !important;padding:22px 36px 140px 292px !important}
+.side{position:fixed;top:0;left:0;bottom:0;width:256px;z-index:999990;padding:22px 16px;display:flex;flex-direction:column;gap:6px;
+  background:linear-gradient(180deg,#F1F3F5 0%,#D9DCE0 55%,#C9CDD2 100%);border-right:1px solid #B9BFC6}
+.side a{text-decoration:none !important}
+.side .home{display:flex;align-items:center;gap:8px;font-family:'Alfa Slab One',serif;font-size:20px;color:#5E3B22 !important;padding:4px 10px 18px}
+.side .navi{color:#2A2420 !important}
+.side .navi.on{color:#5E3B22 !important}
+.pagehead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+.pagehead h2{margin:0 !important;font-size:34px !important}
+.pagehead p{margin:4px 0 0;color:#565B62;font-size:16px}
+.section{margin:30px 0 10px;padding-top:18px;border-top:3px solid #DDE0E4}
+.section h3{margin:0 !important;font-size:24px !important}
+.section p{margin:6px 0 0;color:#565B62;font-size:16px;max-width:760px}
+.chartbox{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:24px;padding:20px 22px;margin-top:12px}
+.go{position:relative;display:inline-flex;align-items:center;gap:8px;margin-top:22px;background:#8B5E3C;color:#FFFFFF !important;text-decoration:none !important;
+  font-weight:800;font-size:17px;border-radius:999px;padding:14px 28px;box-shadow:0 3px 0 #5E3B22}
+div[data-baseweb="select"] > div{border-radius:999px !important;border:3px solid #DDE0E4 !important;background:#FFFFFF !important}
 </style>""")
 
-issues = detect_issues(15)  # loosest rule; the slider in the page narrows it down live
+
+def sidebar(active, alert_count):
+    links = "".join(
+        f'<a class="navi{" on" if p == active else ""}" href="?page={p}" target="_self">'
+        f'{icon(ic, "#8B5E3C" if p == active else "#565B62")}<span>{label}</span>'
+        + (f'<span class="badge">{alert_count}</span>' if p == "alerts" and alert_count else "") + "</a>"
+        for p, ic, label in PAGES
+    )
+    html(f'<div class="side"><a class="home" href="?page=welcome" target="_self" title="Back to the main page">{LEAF} Chrome &amp; Oak</a>'
+         f'<div class="navlbl">Workspace</div>{links}</div>')
+
+
+def page_head(title, sub):
+    html(f'<div class="pagehead"><div><h2>{title}</h2><p>{sub}</p></div></div>')
+    if USING_PLACEHOLDERS:
+        html(f'<span class="tag">{esc(CONNECT_STATUS)}</span>')
+
+
+def section(title, desc=""):
+    html(f'<div class="section"><h3>{title}</h3>' + (f"<p>{desc}</p>" if desc else "") + "</div>")
+
+
+issues = detect_issues(st.session_state.get("days", 30))
 flagged = [i for i in issues if len(i["rows"]) > 0]
-charts = get_charts()
-height = 2950 + 44 * max((len(i["rows"]) for i in flagged), default=0) + 40 * sum(len(i["actions"]) for i in flagged)
+sidebar(page, len(flagged))
 
-components.html(
-    render_dashboard(get_focus(), get_kpis(), charts, get_prep_steps(), get_insights(), issues,
-                     placeholders=USING_PLACEHOLDERS),
-    height=height,
-    scrolling=False,
-)
+# ---------------- Overview ----------------
+if page == "overview":
+    html(
+        '<div class="banner"><div class="ring"></div>'
+        + SPARK.format(pos="top:22px;right:34%", s=22) + SPARK.format(pos="bottom:18px;left:48%", s=16)
+        + DAISY.format(s=84)
+        + "<div><h1>How's business?</h1>"
+        "<p>Revenue is up, but cash is tight. Here's what's driving the gap.</p>"
+        f'<div class="focus"><b>Our focus:</b> {esc(get_focus())}</div></div>'
+        '<span class="checked">✓ Data checked today</span>'
+        '</div><div class="checker"></div>'
+    )
+    if USING_PLACEHOLDERS:
+        html(f'<span class="tag">{esc(CONNECT_STATUS)}</span>')
+    kpis = get_kpis()
+    for i, (col, k) in enumerate(zip(st.columns(len(kpis)), kpis)):
+        color = OAK if i % 2 == 0 else MUT
+        col.markdown(
+            f'<div class="card kpi"><div class="lab">{esc(k["label"])}</div><div class="val">{esc(k["value"])}</div>'
+            f'<div class="del" style="color:{color}">{esc(k["delta"])}</div>{sparkline(k.get("trend"), color)}</div>',
+            unsafe_allow_html=True,
+        )
+    ins = get_insights()
+    section("Key insights", "The short version. Open Insights for the charts behind each one.")
+    for i, (col, x) in enumerate(zip(st.columns(len(ins)), ins), start=1):
+        col.markdown(
+            f'<div class="card"><span class="pill">Insight {i}</span>'
+            f'<div style="font-size:20px;font-weight:700;margin:10px 0 4px">{esc(x["title"])}</div>'
+            f'<div class="lbl">What happened</div><p>{esc(x["what"])}</p>'
+            f'<div class="lbl">Why it matters</div><p>{esc(x["why"])}</p>'
+            f'<div class="lbl">What to do</div><p>{esc(x["todo"])}</p></div>',
+            unsafe_allow_html=True,
+        )
+    if flagged:
+        section("Needs attention", f"{len(flagged)} alert types were triggered automatically.")
+        for i in flagged:
+            html(f'<div class="card" style="padding:14px 20px"><span class="sev {i["severity"]}">{esc(i["severity"])}</span>'
+                 f'<b>{len(i["rows"])} {esc(i["name"])}</b> · <a href="?page=alerts" target="_self">Open alerts →</a></div>')
 
+# ---------------- Data list ----------------
+elif page == "data":
+    df = get_data().copy()
+    page_head("Data list", f"Every cleaned order, {len(df):,} rows. Filter and sort to explore.")
+    c1, c2, c3, c4 = st.columns([2, 2, 1.4, 1])
+    if "region" in df.columns:
+        regions = sorted(df["region"].dropna().astype(str).unique())
+        pick = c1.multiselect("Region", regions, placeholder="All regions")
+        if pick:
+            df = df[df["region"].astype(str).isin(pick)]
+    q = c2.text_input("Search", placeholder="Customer, product, rep…")
+    if q:
+        df = df[df.astype(str).apply(lambda r: r.str.contains(q, case=False)).any(axis=1)]
+    money = [c for c in ("amount", "revenue", "net_amount", "total") if c in df.columns]
+    sort_col = c3.selectbox("Sort by", list(df.columns), index=list(df.columns).index(money[0]) if money else 0)
+    order = c4.selectbox("Order", ["Biggest first", "Smallest first"])
+    df = df.sort_values(sort_col, ascending=(order == "Smallest first"))
+    shown = df.head(200)
+    html(f'<div class="sub" style="margin-top:6px">Showing {len(shown):,} of {len(df):,} rows</div>')
+    table(shown)
+    st.download_button("Download these rows (CSV)", df.to_csv(index=False), "chrome_oak_orders.csv", "text/csv")
+
+# ---------------- Insights ----------------
+elif page == "insights":
+    page_head("Insights", "The patterns, problems and opportunities we found. One chart per finding.")
+    data = get_data()
+    regions = sorted(data["region"].dropna().astype(str).unique()) if "region" in data.columns else []
+    region = st.selectbox("Show charts for", ["All regions"] + regions) if regions else "All regions"
+    takes_region = "region" in inspect.signature(get_charts).parameters
+    charts = get_charts(region=None if region == "All regions" else region) if takes_region else get_charts()
+    if region != "All regions" and not takes_region:
+        html('<span class="tag">Region filter needs get_charts(region) in analysis.py</span>')
+    for ch in charts:
+        section(esc(ch["title"]), esc(ch.get("desc", ch.get("caption", ""))))
+        html(f'<div class="chartbox">{bar_chart_svg(ch)}</div>')
+    ins = get_insights()
+    section("What it means", "Each insight: what happened, why it matters, and what Chrome & Oak should do.")
+    for i, (col, x) in enumerate(zip(st.columns(len(ins)), ins), start=1):
+        col.markdown(
+            f'<div class="card"><span class="pill">Insight {i}</span>'
+            f'<div style="font-size:20px;font-weight:700;margin:10px 0 4px">{esc(x["title"])}</div>'
+            f'<div class="lbl">What happened</div><p>{esc(x["what"])}</p>'
+            f'<div class="lbl">Why it matters</div><p>{esc(x["why"])}</p>'
+            f'<div class="lbl">What to do</div><p>{esc(x["todo"])}</p></div>',
+            unsafe_allow_html=True,
+        )
+
+# ---------------- Alerts ----------------
+elif page == "alerts":
+    page_head("Alerts", "Checks that run automatically. When a rule is met, Chrome flags it and Oak acts.")
+    st.slider("Simulation: flag after (days late)", 15, 90, 30, 5, key="days")
+    for n, issue in enumerate(issues):
+        count = len(issue["rows"])
+        section(f'<span class="sev {issue["severity"]}">{esc(issue["severity"])}</span>{count} {esc(issue["name"])}')
+        if not count:
+            html('<p style="color:#565B62">All clear, nothing to do.</p>')
+            continue
+        c1, c2, c3 = st.columns(3)
+        c1.markdown(
+            f'<div class="step3"><div class="who"><span style="flex:none">{mascot_svg("chrome", "worried", 58)}</span>'
+            f'<div><div class="k">Step 1 · Chrome noticed</div><div class="h">{esc(issue["found"])}</div></div></div>'
+            f'<p style="margin:8px 0 0;font-size:15px;color:#565B62">Rule: {esc(issue["rule"])}.</p></div>',
+            unsafe_allow_html=True,
+        )
+        done = "".join(f'<div class="done">✓ {esc(a)}</div>' for a in issue["actions"])
+        c2.markdown(
+            f'<div class="step3 oak"><div class="who"><span style="flex:none">{mascot_svg("oak", "happy", 58)}</span>'
+            f'<div><div class="k">Step 2 · Oak took care of it</div><div class="h">{len(issue["actions"])} things done</div></div></div>{done}</div>',
+            unsafe_allow_html=True,
+        )
+        with c3:
+            html('<div class="step3"><div class="k">Step 3 · Your turn</div><div class="h">Review and send?</div></div>')
+            if st.button("Preview & send", key=f"send{n}"):
+                st.toast(f"Sent ✓ {issue['notify']} notified")
+            st.button("Not a problem, dismiss", key=f"dis{n}")
+        table(issue["rows"])
+    log = [{"condition": i["name"], "records": len(i["rows"]), "action": a, "sent to": i["notify"]}
+           for i in flagged for a in i["actions"]]
+    if log:
+        section("Action log", "Everything the automation did, so a person can check it.")
+        log_df = pd.DataFrame(log)
+        table(log_df)
+        st.download_button("Download action log (CSV)", log_df.to_csv(index=False), "action_log.csv", "text/csv")
+
+# ---------------- Data prep ----------------
+elif page == "prep":
+    page_head("Data prep", "Every change we made before trusting a number, and why.")
+    prep = "".join(
+        f'<div class="prep"><div><div class="ttl" style="font-size:16px">✓ {esc(p["what"])}</div>'
+        f'<p style="margin:2px 0 0"><b style="color:#8B5E3C">Why:</b> {esc(p["why"])}</p></div>'
+        f'<span class="rows">{esc(p["rows"])}</span></div>'
+        for p in get_prep_steps()
+    )
+    html(f'<div class="card" style="margin-top:14px">{prep}</div>')
 
 # ---------------------------------------------------------------------------
-# 6. Chrome & Oak floating in the bottom-right corner, talking to each other
+# 4. Chrome & Oak floating in the bottom-right corner
 # ---------------------------------------------------------------------------
 if not flagged:
-    mood = "happy"
-    chrome_msg = "I checked every order, return and invoice. All clear!"
-    oak_msg = "Great, nothing needs action right now."
+    mood, chrome_msg, oak_msg = "happy", "I checked every order, return and invoice. All clear!", "Great, nothing needs action right now."
 else:
     top = max(flagged, key=lambda i: len(i["rows"]))
     mood = "worried" if len(flagged) == 1 else "sad"

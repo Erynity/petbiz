@@ -279,7 +279,7 @@ def render_dashboard(focus, kpis, charts, prep, insights, issues, placeholders=F
     log_csv = "condition,records,action,sent to\n" + "\n".join(f'"{c}",{n},"{a}","{w}"' for c, n, a, w in log_rows)
 
     tag = ('<span style="display:inline-block;background:#FFFFFF;border:2px dashed #B9BFC6;border-radius:999px;padding:5px 14px;'
-           'font-weight:700;font-size:13px;color:#565B62">Placeholders · waiting for analysis.py</span>') if placeholders else ""
+           'font-weight:700;font-size:13px;color:#565B62">' + esc(placeholders if isinstance(placeholders, str) else "Placeholders · waiting for analysis.py") + '</span>') if placeholders else ""
 
     body = f'''<div style="min-height: 100vh; display: grid; grid-template-columns: 256px 1fr; background: {BG}">
 <aside style="background: linear-gradient(180deg, #F1F3F5 0%, #D9DCE0 55%, #C9CDD2 100%); border-right: 1px solid #B9BFC6; padding: 22px 16px; display: flex; flex-direction: column; gap: 6px">

@@ -63,6 +63,20 @@ def load_data():
     return customers, orders, returns, dropped, fixes
 
 
+def get_data():
+    """The cleaned orders table, one row per order (used by app.py's Data list and Insights pages)."""
+    _, orders, *_ = load_data()
+    out = orders.rename(columns={"sales_rep": "rep", "net": "amount"})
+    out["order_date"] = out["order_date"].dt.date
+    out["payment_date"] = out["payment_date"].dt.date
+    cols = ["order_id", "order_date", "customer_id", "segment", "region", "rep", "sales_channel", "product", "category",
+            "quantity", "unit_price", "discount", "amount", "margin", "refund", "payment_terms", "payment_date"]
+    out = out[cols].copy()
+    out["amount"] = out["amount"].round(2)
+    out["margin"] = out["margin"].round(2)
+    return out
+
+
 def _margin_pct(df):
     """Margin as a share of revenue, on orders where the cost is known."""
     known = df[df["cost"].notna()]
@@ -119,15 +133,22 @@ def get_kpis():
     ]
 
 
-def get_charts():
-    """Two bar charts in the shape dashboard_view.py draws (format / sort / highlight / x_title)."""
+def get_charts(region=None):
+    """Two bar charts in the shape dashboard_view.py draws (format / sort / highlight / x_title).
+
+    `region` (optional, from app.py's "Show charts for" box) limits the rep chart to that region.
+    """
     _, orders, *_ = load_data()
 
     # Chart 1: average discount by sales rep (online orders have no rep)
     reps = orders[orders["sales_rep"] != "Self-serve"]
-    disc = reps.groupby("sales_rep")["discount"].mean().round(3).sort_values(ascending=False)
-    top_rep = disc.index[0]
+    all_disc = reps.groupby("sales_rep")["discount"].mean().sort_values(ascending=False)
+    top_rep = all_disc.index[0]
     top_region = reps.loc[reps["sales_rep"] == top_rep, "region"].mode()[0]
+    if region:
+        reps = reps[reps["region"] == region]
+    disc = reps.groupby("sales_rep")["discount"].mean().round(3).sort_values(ascending=False)
+    rep_caption = f"Reps in {region}" if region else f"Rep {top_rep} ({top_region}) highlighted"
 
     # Chart 2: margin % by region (orders with a known cost only)
     known = orders[orders["cost"].notna()]
@@ -135,7 +156,7 @@ def get_charts():
     margin = margin.round(3).sort_values(ascending=False)
 
     return [
-        {"title": "Average discount by sales rep", "caption": f"Rep {top_rep} ({top_region}) highlighted",
+        {"title": "Average discount by sales rep", "caption": rep_caption,
          "data": disc.to_frame("avg_discount"), "kind": "bar", "format": "percent", "sort": True,
          "highlight": top_rep, "x_title": "Sales rep"},
         {"title": "Margin % by region", "caption": f"{top_region} keeps half as much of each dollar",

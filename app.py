@@ -24,6 +24,7 @@ import pandas as pd
 import streamlit as st
 
 from pet import MASCOT_CSS, mascot_svg, mascots_pair, show_pets
+from dashboard_view import esc
 
 st.set_page_config(page_title="Chrome & Oak · Health Check", page_icon="💼", layout="wide")
 
@@ -216,7 +217,12 @@ a.navi:hover{background:rgba(255,255,255,.6)}
 .tbl{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:18px;overflow:hidden;overflow-x:auto;margin:14px 0 6px}
 .tbl table{width:100%;border-collapse:collapse;font-size:15px}
 .tbl th{text-align:left;background:#F4F5F7;color:#565B62;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;padding:10px 14px}
-.tbl td{padding:11px 14px;border-top:2px solid #EEF0F2;color:#2A2420}
+.tbl td{padding:11px 14px;border-top:2px solid #EEF0F2;color:#2A2420;white-space:nowrap}
+.tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl tr.hl td{background:#FBE7DA !important;font-weight:800;color:#5E3B22}
+.tbl th a.sorth{color:#565B62 !important;text-decoration:none !important;display:inline-flex;gap:6px;align-items:center}
+.tbl th a.sorth:hover{color:#8B5E3C !important}
+.tbl th a.sorth span{color:#8B5E3C;font-size:13px}
 .tbl tr:nth-child(even) td{background:#FBF8F4}
 [data-testid="stElementToolbar"]{display:none !important}
 .vega-embed details,.vega-actions{display:none !important}
@@ -257,11 +263,99 @@ def html(s):
     st.markdown(s, unsafe_allow_html=True)
 
 
-def table(df):
-    """Plain, styled HTML table (no interactive grid)."""
-    head = "".join(f"<th>{c}</th>" for c in df.columns)
-    body = "".join("<tr>" + "".join(f"<td>{v}</td>" for v in row) + "</tr>" for row in df.astype(str).values)
-    html(f'<div class="tbl"><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>')
+def pretty(col, v):
+    """Easy-to-read cell values: $ for money, % for rates, clean dates."""
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return "—"
+    c = str(col).lower()
+    try:
+        if any(k in c for k in ("price", "amount", "revenue", "cost", "owe", "total", "balance", "limit")) and not isinstance(v, str):
+            return f"${float(v):,.2f}"
+        if any(k in c for k in ("discount", "margin", "rate", "pct")) and not isinstance(v, str):
+            return f"{float(v) * 100:.1f}%" if abs(float(v)) <= 1.5 else f"{float(v):.1f}%"
+        if isinstance(v, pd.Timestamp):
+            return v.strftime("%Y-%m-%d")
+        if isinstance(v, float):
+            return f"{v:,.0f}" if v.is_integer() else f"{v:,.2f}"
+    except (TypeError, ValueError):
+        pass
+    return str(v)
+
+
+def sortable_table(df, height=620, max_rows=300):
+    """Data list table: click a column title to sort A→Z / low→high, click again to flip.
+    Sorting happens in the browser, so the page never reloads."""
+    import json
+
+    import streamlit.components.v1 as components
+
+    cols = list(df.columns)
+    raw = df.astype(object).where(df.notna(), None)
+    rows = [[(v.isoformat() if hasattr(v, "isoformat") else v) for v in r] for r in raw.values.tolist()]
+    shown = [[pretty(c, v) for c, v in zip(cols, r)] for r in raw.values.tolist()]
+    nums = [pd.api.types.is_numeric_dtype(df[c]) for c in cols]
+    payload = json.dumps({"cols": [str(c).replace("_", " ") for c in cols], "raw": rows, "shown": shown, "nums": nums},
+                         default=str)
+    components.html(f"""
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+body{{margin:0;font-family:'Nunito',sans-serif;color:#2A2420;background:transparent}}
+.wrap{{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:18px;overflow:auto;height:{height - 40}px}}
+table{{width:100%;border-collapse:collapse;font-size:15px}}
+th{{position:sticky;top:0;background:#F4F5F7;text-align:left;padding:0;z-index:1}}
+th button{{all:unset;cursor:pointer;display:flex;gap:6px;align-items:center;width:100%;box-sizing:border-box;padding:12px 14px;
+  font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#565B62;white-space:nowrap}}
+th button:hover,th button:focus-visible{{color:#8B5E3C;background:#ECEEF1}}
+th button span{{color:#8B5E3C;font-size:13px}}
+td{{padding:11px 14px;border-top:2px solid #EEF0F2;white-space:nowrap}}
+td.num{{text-align:right;font-variant-numeric:tabular-nums}}
+tr:nth-child(even) td{{background:#FBF8F4}}
+.note{{font-size:13px;color:#565B62;margin:8px 4px 0;font-weight:600}}
+</style>
+<div class="wrap"><table><thead><tr id="h"></tr></thead><tbody id="b"></tbody></table></div>
+<div class="note" id="n"></div>
+<script>
+const D = {payload};
+const MAX = {max_rows};
+let order = D.raw.map((_, i) => i), col = -1, asc = true;
+function draw() {{
+  document.getElementById('h').innerHTML = D.cols.map((c, i) =>
+    `<th><button onclick="sortBy(${{i}})" aria-label="Sort by ${{c}}">${{c}} <span>${{i === col ? (asc ? '▲' : '▼') : '↕'}}</span></button></th>`).join('');
+  document.getElementById('b').innerHTML = order.slice(0, MAX).map(r =>
+    '<tr>' + D.shown[r].map((v, i) => `<td class="${{D.nums[i] ? 'num' : ''}}">${{String(v).replace(/</g, '&lt;')}}</td>`).join('') + '</tr>').join('');
+  document.getElementById('n').textContent = `Showing ${{Math.min(MAX, order.length)}} of ${{order.length}} rows` +
+    (col >= 0 ? ` · sorted by ${{D.cols[col]}} (${{asc ? (D.nums[col] ? 'low → high' : 'A → Z') : (D.nums[col] ? 'high → low' : 'Z → A')}})` : ' · click a column title to sort');
+}}
+function sortBy(i) {{
+  asc = (col === i) ? !asc : true; col = i;
+  order.sort((x, y) => {{
+    let a = D.raw[x][i], b = D.raw[y][i];
+    if (a === null) return 1; if (b === null) return -1;
+    const r = D.nums[i] ? a - b : String(a).localeCompare(String(b), undefined, {{numeric: true}});
+    return asc ? r : -r;
+  }});
+  draw();
+}}
+draw();
+</script>""", height=height, scrolling=False)
+
+
+def table(df, sort_links=None, highlight=None):
+    """Plain, styled HTML table. sort_links: {column: url} makes headers clickable.
+    highlight: a value in the first column whose row is shaded."""
+    def th(c):
+        label = str(c).replace("_", " ")
+        if sort_links and c in sort_links:
+            url, arrow = sort_links[c]
+            return f'<th><a class="sorth" href="{url}" target="_self">{label} <span>{arrow}</span></a></th>'
+        return f"<th>{label}</th>"
+    head = "".join(th(c) for c in df.columns)
+    rows = []
+    for _, r in df.iterrows():
+        hl = highlight is not None and str(r.iloc[0]) == str(highlight)
+        cells = "".join(f'<td class="{"num" if not isinstance(v, str) else ""}">{esc(pretty(c, v))}</td>' for c, v in r.items())
+        rows.append(f'<tr class="{"hl" if hl else ""}">{cells}</tr>')
+    html(f'<div class="tbl"><table><thead><tr>{head}</tr></thead><tbody>{"".join(rows)}</tbody></table></div>')
 
 
 def rerun():
@@ -322,7 +416,16 @@ section[data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid
 .section{margin:30px 0 10px;padding-top:18px;border-top:3px solid #DDE0E4}
 .section h3{margin:0 !important;font-size:24px !important}
 .section p{margin:6px 0 0;color:#565B62;font-size:16px;max-width:760px}
-.chartbox{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:24px;padding:20px 22px;margin-top:12px}
+.chartbox{background:#FFFFFF;border:3px solid #DDE0E4;border-radius:24px;padding:14px 18px;margin-top:4px}
+.chartbox svg{max-height:300px}
+.duo-talk{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin:16px 0 8px}
+.duo-talk.stack{grid-template-columns:1fr;margin-top:0}
+.talk{display:flex;align-items:flex-end;gap:10px}
+.talk .av{flex:none}
+.talk .bubble{position:relative;flex:1;background:#FFFFFF;border:3px solid #DDE0E4;border-radius:22px 22px 22px 6px;padding:14px 18px;font-size:15.5px;line-height:1.55;color:#2A2420}
+.talk.oak .bubble{border-color:#E6CDAE;background:#FFFBF6}
+.talk .bubble .k{font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#565B62;margin-bottom:4px}
+.talk.oak .bubble .k{color:#8B5E3C}
 .go{position:relative;display:inline-flex;align-items:center;gap:8px;margin-top:22px;background:#8B5E3C;color:#FFFFFF !important;text-decoration:none !important;
   font-weight:800;font-size:17px;border-radius:999px;padding:14px 28px;box-shadow:0 3px 0 #5E3B22}
 div[data-baseweb="select"] > div{border-radius:999px !important;border:3px solid #DDE0E4 !important;background:#FFFFFF !important}
@@ -396,8 +499,8 @@ if page == "overview":
 # ---------------- Data list ----------------
 elif page == "data":
     df = get_data().copy()
-    page_head("Data list", f"Every cleaned order, {len(df):,} rows. Filter and sort to explore.")
-    c1, c2, c3, c4 = st.columns([2, 2, 1.4, 1])
+    page_head("Data list", f"Every cleaned order, {len(df):,} rows. Click a column title to sort; click again to flip.")
+    c1, c2 = st.columns([2, 2])
     if "region" in df.columns:
         regions = sorted(df["region"].dropna().astype(str).unique())
         pick = c1.multiselect("Region", regions, placeholder="All regions")
@@ -405,40 +508,50 @@ elif page == "data":
             df = df[df["region"].astype(str).isin(pick)]
     q = c2.text_input("Search", placeholder="Customer, product, rep…")
     if q:
-        df = df[df.astype(str).apply(lambda r: r.str.contains(q, case=False)).any(axis=1)]
-    money = [c for c in ("amount", "revenue", "net_amount", "total") if c in df.columns]
-    sort_col = c3.selectbox("Sort by", list(df.columns), index=list(df.columns).index(money[0]) if money else 0)
-    order = c4.selectbox("Order", ["Biggest first", "Smallest first"])
-    df = df.sort_values(sort_col, ascending=(order == "Smallest first"))
-    shown = df.head(200)
-    html(f'<div class="sub" style="margin-top:6px">Showing {len(shown):,} of {len(df):,} rows</div>')
-    table(shown)
+        df = df[df.astype(str).apply(lambda r: r.str.contains(q, case=False, regex=False)).any(axis=1)]
+    sortable_table(df)
     st.download_button("Download these rows (CSV)", df.to_csv(index=False), "chrome_oak_orders.csv", "text/csv")
 
 # ---------------- Insights ----------------
 elif page == "insights":
-    page_head("Insights", "The patterns, problems and opportunities we found. One chart per finding.")
+    page_head("Insights", "The patterns, problems and opportunities we found. One finding per section.")
     data = get_data()
     regions = sorted(data["region"].dropna().astype(str).unique()) if "region" in data.columns else []
-    region = st.selectbox("Show charts for", ["All regions"] + regions) if regions else "All regions"
+    region = st.selectbox("Show data for", ["All regions"] + regions) if regions else "All regions"
     takes_region = "region" in inspect.signature(get_charts).parameters
     charts = get_charts(region=None if region == "All regions" else region) if takes_region else get_charts()
     if region != "All regions" and not takes_region:
         html('<span class="tag">Region filter needs get_charts(region) in analysis.py</span>')
-    for ch in charts:
-        section(esc(ch["title"]), esc(ch.get("desc", ch.get("caption", ""))))
-        html(f'<div class="chartbox">{bar_chart_svg(ch)}</div>')
     ins = get_insights()
-    section("What it means", "Each insight: what happened, why it matters, and what Chrome & Oak should do.")
-    for i, (col, x) in enumerate(zip(st.columns(len(ins)), ins), start=1):
-        col.markdown(
-            f'<div class="card"><span class="pill">Insight {i}</span>'
-            f'<div style="font-size:20px;font-weight:700;margin:10px 0 4px">{esc(x["title"])}</div>'
-            f'<div class="lbl">What happened</div><p>{esc(x["what"])}</p>'
-            f'<div class="lbl">Why it matters</div><p>{esc(x["why"])}</p>'
-            f'<div class="lbl">What to do</div><p>{esc(x["todo"])}</p></div>',
-            unsafe_allow_html=True,
-        )
+
+    def talk(who, mood, label, text):
+        side = "oak" if who == "oak" else "chrome"
+        return (f'<div class="talk {side}"><span class="av">{mascot_svg(who, mood, 74)}</span>'
+                f'<div class="bubble"><div class="k">{label}</div>{text}</div></div>')
+
+    for n, ch in enumerate(charts):
+        section(f'<span style="color:#8B5E3C">{n + 1}.</span> {esc(ch["title"])}', esc(ch.get("desc", ch.get("caption", ""))))
+        left, right = st.columns([1, 1], gap="large")
+        with left:
+            d = ch["data"].copy()
+            if ch.get("sort"):
+                d = d.sort_values(d.columns[0], ascending=False)
+            d = d.reset_index()
+            d.columns = [ch.get("x_title", d.columns[0]), d.columns[1]]
+            hl = ch.get("highlight")
+            table(d, highlight=hl if isinstance(hl, str) else None)
+        if n < len(ins):
+            x = ins[n]
+            right.markdown('<div class="duo-talk stack">'
+                 + talk("chrome", "worried", "Chrome · what it means",
+                        f"<b>{esc(x['title'])}.</b> {esc(x['what'])} <br><br><b>Why it matters:</b> {esc(x['why'])}")
+                 + talk("oak", "happy", "Oak · what we can do", esc(x["todo"]))
+                 + "</div>", unsafe_allow_html=True)
+    for x in ins[len(charts):]:  # any extra insights without a chart
+        section(esc(x["title"]))
+        html('<div class="duo-talk">'
+             + talk("chrome", "worried", "Chrome · what it means", f"{esc(x['what'])}<br><br><b>Why it matters:</b> {esc(x['why'])}")
+             + talk("oak", "happy", "Oak · what we can do", esc(x["todo"])) + "</div>")
 
 # ---------------- Alerts ----------------
 elif page == "alerts":

@@ -158,7 +158,13 @@ def mascots_pair(mood_chrome="happy", mood_oak="happy", size=120, walk_in=False)
 DUO_CSS = """
 <style>
 .duo{position:fixed;right:24px;bottom:20px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:8px;font-family:'Inter',sans-serif}
-#duo-toggle{position:absolute;opacity:0;pointer-events:none}
+#duo-toggle,#duo-close{position:absolute;opacity:0;pointer-events:none}
+.duo-x{cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#565B62;margin:-4px -6px -4px 0}
+.duo-x:hover{background:#EEF0F2;color:#2A2420}
+.duo-hint .h-closed{display:none;cursor:pointer;font-weight:800;color:#5E3B22;background:#FFFFFF;border:2px solid #E6CDAE;border-radius:999px;padding:4px 12px}
+#duo-close:checked ~ .duo-chat{display:none}
+#duo-close:checked ~ .duo-hint .h-open{display:none}
+#duo-close:checked ~ .duo-hint .h-closed{display:inline-block}
 .duo-chat{width:330px;background:#FFFFFF;border:1px solid #E9E1D6;border-radius:16px 16px 4px 16px;padding:14px 16px;box-shadow:0 12px 32px rgba(36,26,19,.16);display:flex;flex-direction:column;gap:10px;animation:duo-pop .4s .3s ease-out both}
 .duo-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:#6B5B4E;border-bottom:1px solid #F0EAE1;padding-bottom:8px}
 .duo-live{display:inline-flex;align-items:center;gap:6px}
@@ -187,19 +193,19 @@ def show_pets(mood, chrome_msg, oak_msg):
     html = (
         DUO_CSS
         + '<div class="duo">'
-        + '<input type="checkbox" id="duo-toggle" aria-label="Pet Chrome and Oak">'
+        + '<input type="checkbox" id="duo-close" aria-label="Show or hide the chat">'
         + '<div class="duo-chat" role="status">'
-        + '<div class="duo-head"><span class="duo-live">Watching your data</span><span>Chrome &amp; Oak</span></div>'
+        + '<div class="duo-head"><span class="duo-live">Watching your data</span>'
+        + '<label for="duo-close" class="duo-x" title="Close chat" aria-label="Close chat">×</label></div>'
         + f'<div class="duo-line msg"><span class="duo-who chrome">Chrome</span><span class="duo-text">{chrome_msg}</span></div>'
         + f'<div class="duo-line msg"><span class="duo-who oak">Oak</span><span class="duo-text">{oak_msg}</span></div>'
         + '<div class="duo-line thanks"><span class="duo-who chrome">Chrome</span><span class="duo-text">Purr... okay, back to the numbers!</span></div>'
         + '<div class="duo-line thanks"><span class="duo-who oak">Oak</span><span class="duo-text">Thanks, partner. Click us again for the update.</span></div>'
         + "</div>"
-        + '<label for="duo-toggle" class="duo-btn" title="Pet Chrome &amp; Oak">'
+        + '<label for="duo-close" class="duo-btn" title="Open or close the chat">'
         + f'<span style="display:inline-block">{mascot_svg("chrome", mood, 76)}</span>'
         + f'<span style="display:inline-block">{mascot_svg("oak", oak_mood, 76)}</span>'
         + "</label>"
-        + '<span class="duo-hint">Click to pet</span>'
         + "</div>"
     )
     st.markdown(html, unsafe_allow_html=True)

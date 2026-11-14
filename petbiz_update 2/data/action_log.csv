@@ -1,0 +1,5 @@
+when,what,type,by,alert
+Today 16:03,2 found: products with high return rates (refunds above 5% of the product's revenue (at least 20 orders)),Rule,Chrome,returns
+Today 16:03,Ticket drafted for 2 product(s),Action,Oak,returns
+Today 16:03,Top return reason attached to each ticket,Action,Oak,returns
+Today 16:03,Operations manager notified,Notify,Oak,returns

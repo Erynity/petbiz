@@ -195,11 +195,11 @@ def detect_returns(orders, returns, refund_rate, min_orders=20):
 # ---------------------------------------------------------------------------
 # DECIDE: the rules, their default thresholds, and the slider range for each
 # ---------------------------------------------------------------------------
-ALERT_RULES = [
-    {"id": "overdue", "slider": "Flag invoices more than N days late", "unit": "days",
-     "min": 0, "max": 90, "step": 5, "default": 30},
+ALERT_RULES = [  # discount first: it comes straight from the main insight
     {"id": "discount", "slider": "Discount cap (%)", "unit": "%",
      "min": 5, "max": 40, "step": 1, "default": 15},
+    {"id": "overdue", "slider": "Flag invoices more than N days late", "unit": "days",
+     "min": 0, "max": 90, "step": 5, "default": 30},
     {"id": "returns", "slider": "Flag refunds above (% of a product's revenue)", "unit": "%",
      "min": 2, "max": 15, "step": 1, "default": 5},
 ]

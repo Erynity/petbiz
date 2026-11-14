@@ -187,25 +187,14 @@ DUO_CSS = """
 """
 
 
-def show_pets(mood, chrome_msg, oak_msg):
-    """Floating Chrome & Oak in the bottom-right corner, talking to each other."""
+def show_pets(mood="happy"):
+    """Chrome & Oak sitting in the bottom-right corner (no chat bubble). mood: happy | worried | sad."""
     oak_mood = "happy" if mood == "happy" else "worried"  # Oak stays calm: he has a plan
     html = (
         DUO_CSS
-        + '<div class="duo">'
-        + '<input type="checkbox" id="duo-close" aria-label="Show or hide the chat">'
-        + '<div class="duo-chat" role="status">'
-        + '<div class="duo-head"><span class="duo-live">Watching your data</span>'
-        + '<label for="duo-close" class="duo-x" title="Close chat" aria-label="Close chat">×</label></div>'
-        + f'<div class="duo-line msg"><span class="duo-who chrome">Chrome</span><span class="duo-text">{chrome_msg}</span></div>'
-        + f'<div class="duo-line msg"><span class="duo-who oak">Oak</span><span class="duo-text">{oak_msg}</span></div>'
-        + '<div class="duo-line thanks"><span class="duo-who chrome">Chrome</span><span class="duo-text">Purr... okay, back to the numbers!</span></div>'
-        + '<div class="duo-line thanks"><span class="duo-who oak">Oak</span><span class="duo-text">Thanks, partner. Click us again for the update.</span></div>'
-        + "</div>"
-        + '<label for="duo-close" class="duo-btn" title="Open or close the chat">'
+        + '<div class="duo"><span class="duo-btn" aria-hidden="true">'
         + f'<span style="display:inline-block">{mascot_svg("chrome", mood, 76)}</span>'
         + f'<span style="display:inline-block">{mascot_svg("oak", oak_mood, 76)}</span>'
-        + "</label>"
-        + "</div>"
+        + "</span></div>"
     )
     st.markdown(html, unsafe_allow_html=True)

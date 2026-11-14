@@ -29,7 +29,7 @@ def load_data():
     return customers, orders, returns, dropped, fixes
 
 
-def get_data():
+def get_orders():
     """The cleaned orders table, one row per order (Data list page)."""
     _, orders, *_ = load_data()
     out = orders.rename(columns={"sales_rep": "rep", "net": "amount"})
@@ -41,3 +41,33 @@ def get_data():
     out["amount"] = out["amount"].round(2)
     out["margin"] = out["margin"].round(2)
     return out
+
+
+get_data = get_orders  # older name, still used by the Insights page
+
+
+def get_customers():
+    """The cleaned customers table, plus how much each one ordered and still owes."""
+    customers, orders, *_ = load_data()
+    per = orders.groupby("customer_id").agg(
+        orders=("order_id", "count"), revenue=("net", "sum"), last_order=("order_date", "max"),
+        unpaid=("net", lambda s: s[orders.loc[s.index, "payment_date"].isna()].sum()),
+    )
+    out = customers.merge(per, on="customer_id", how="left").fillna({"orders": 0, "revenue": 0, "unpaid": 0})
+    out["orders"] = out["orders"].astype(int)
+    out["revenue"] = out["revenue"].round(2)
+    out["unpaid"] = out["unpaid"].round(2)
+    out["signup_date"] = out["signup_date"].dt.date
+    out["last_order"] = out["last_order"].dt.date
+    return out
+
+
+def get_returns():
+    """The cleaned returns table, with the product, region and customer of the order it belongs to."""
+    _, orders, returns, *_ = load_data()
+    out = returns.merge(orders[["order_id", "customer_id", "region", "product", "category", "quantity"]], on="order_id", how="left")
+    out = out.rename(columns={"quantity": "quantity_ordered"})
+    out["return_date"] = out["return_date"].dt.date
+    cols = ["return_id", "order_id", "return_date", "customer_id", "region", "product", "category",
+            "quantity_ordered", "quantity_returned", "reason", "refund_amount"]
+    return out[cols]

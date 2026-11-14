@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-from chrome_oak.analysis import get_data
+from chrome_oak.analysis import get_customers, get_orders, get_returns
 from chrome_oak.ui.components import page_head, pretty
 from chrome_oak.ui.theme import inject_page_css
 
@@ -65,17 +65,75 @@ draw();
 </script>""", height=height, scrolling=False)
 
 
+def _pick(df, col, label, key, container):
+    """A multiselect filter on one column. Nothing picked = keep everything."""
+    options = sorted(df[col].dropna().astype(str).unique())
+    chosen = container.multiselect(label, options, placeholder=f"All {label.lower()}", key=key)
+    return df[df[col].astype(str).isin(chosen)] if chosen else df
+
+
+def _date_range(df, col, label, key, container):
+    lo, hi = df[col].min(), df[col].max()
+    picked = container.date_input(label, (lo, hi), min_value=lo, max_value=hi, key=key)
+    if isinstance(picked, (tuple, list)) and len(picked) == 2:
+        df = df[(df[col] >= picked[0]) & (df[col] <= picked[1])]
+    return df
+
+
+def _show(df, total, name):
+    st.caption(f"{len(df):,} of {total:,} rows · click a column title to sort, click again to flip")
+    sortable_table(df)
+    st.download_button(f"Download these {name} (CSV)", df.to_csv(index=False), f"chrome_oak_{name}.csv", "text/csv",
+                       key=f"dl_{name}")
+
+
+def _orders_tab():
+    df = get_orders()
+    c = st.columns(4)
+    out = _date_range(df, "order_date", "Order date", "o_date", c[0])
+    out = _pick(out, "region", "Regions", "o_region", c[1])
+    out = _pick(out, "segment", "Segments", "o_segment", c[2])
+    out = _pick(out, "rep", "Reps", "o_rep", c[3])
+    c = st.columns(4)
+    out = _pick(out, "category", "Categories", "o_category", c[0])
+    out = _pick(out, "product", "Products", "o_product", c[1])
+    out = _pick(out, "sales_channel", "Channels", "o_channel", c[2])
+    paid = c[3].selectbox("Payment", ["All", "Paid", "Unpaid"], key="o_paid")
+    if paid != "All":
+        out = out[out["payment_date"].isna() == (paid == "Unpaid")]
+    _show(out, len(df), "orders")
+
+
+def _customers_tab():
+    df = get_customers()
+    c = st.columns(4)
+    out = _pick(df, "segment", "Segments", "c_segment", c[0])
+    out = _pick(out, "region", "Regions", "c_region", c[1])
+    out = _pick(out, "payment_terms", "Payment terms", "c_terms", c[2])
+    out = _pick(out, "account_rep", "Account reps", "c_rep", c[3])
+    if st.checkbox("Only customers who still owe money", key="c_owes"):
+        out = out[out["unpaid"] > 0]
+    _show(out, len(df), "customers")
+
+
+def _returns_tab():
+    df = get_returns()
+    c = st.columns(4)
+    out = _date_range(df, "return_date", "Return date", "r_date", c[0])
+    out = _pick(out, "reason", "Reasons", "r_reason", c[1])
+    out = _pick(out, "category", "Categories", "r_category", c[2])
+    out = _pick(out, "product", "Products", "r_product", c[3])
+    out = _pick(out, "region", "Regions", "r_region", st.columns(4)[0])
+    _show(out, len(df), "returns")
+
+
 def render(ctx):
     inject_page_css(__file__)
-    df = get_data().copy()
-    page_head("Data list", f"Every cleaned order, {len(df):,} rows. Click a column title to sort; click again to flip.")
-    c1, c2 = st.columns([2, 2])
-    regions = sorted(df["region"].dropna().astype(str).unique())
-    pick = c1.multiselect("Region", regions, placeholder="All regions")
-    if pick:
-        df = df[df["region"].astype(str).isin(pick)]
-    q = c2.text_input("Search", placeholder="Customer, product, rep…")
-    if q:
-        df = df[df.astype(str).apply(lambda r: r.str.contains(q, case=False, regex=False)).any(axis=1)]
-    sortable_table(df)
-    st.download_button("Download these rows (CSV)", df.to_csv(index=False), "chrome_oak_orders.csv", "text/csv")
+    page_head("Data list", "The three cleaned tables. Filter each one, sort by any column, and download what you see.")
+    orders_tab, customers_tab, returns_tab = st.tabs(["Orders", "Customers", "Returns"])
+    with orders_tab:
+        _orders_tab()
+    with customers_tab:
+        _customers_tab()
+    with returns_tab:
+        _returns_tab()

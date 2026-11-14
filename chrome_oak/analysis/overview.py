@@ -1,6 +1,10 @@
 """DATA -> DECIDE: the headline. The one problem we chose, and the numbers on the Overview page."""
 
+import pandas as pd
+
 from chrome_oak.analysis.metrics import jan_sep, margin_pct, money
+from chrome_oak.analysis.insights import aging_chart, get_charts, refunds_chart
+from chrome_oak.config import ASOF
 from chrome_oak.data.loader import load_data
 
 
@@ -40,4 +44,30 @@ def get_kpis():
          "trend": q_past_due.round(0).tolist()},
         {"label": "Refunded", "value": f"{refund_rate:.1%} of revenue", "delta": f"{money(orders['refund'].sum())} given back",
          "trend": q_refund.round(3).tolist()},
+    ]
+
+
+def get_dashboard_charts():
+    """The Overview dashboard: six charts, each a dict the ui/charts.py renderer understands."""
+    _, orders, *_ = load_data()
+    known = orders[orders["cost"].notna()]
+    rep_chart, region_chart = get_charts()
+
+    # 1. revenue vs gross profit by quarter
+    quarter = known["order_date"].dt.to_period("Q")
+    q = known.groupby(quarter).agg(Revenue=("net", "sum"), **{"Gross profit": ("margin", "sum")})
+    q.index = [f"{p.year} Q{p.quarter}" for p in q.index]
+
+    # 2. revenue by region (Atlantic highlighted)
+    rev_region = orders.groupby("region")["net"].sum().sort_values(ascending=False)
+
+    return [
+        {"title": "Revenue is growing faster than profit", "caption": "Revenue and gross profit per quarter",
+         "data": q.round(0), "kind": "line", "format": "dollar", "wide": True},
+        {"title": "Revenue by region", "caption": "Atlantic is the #2 region for sales…",
+         "data": rev_region.to_frame("revenue"), "kind": "bar", "format": "dollar", "highlight": "Atlantic"},
+        {**region_chart, "caption": "…but keeps half the margin of every other region"},
+        {**rep_chart, "caption": "Why: one Atlantic rep discounts 2–3× more than everyone else", "wide": True},
+        refunds_chart(),
+        aging_chart(),
     ]

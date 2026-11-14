@@ -47,13 +47,5 @@ inject_frame()
 sidebar([(pid, ic, label) for pid, ic, label, _ in PAGES], page, len(open_issues))
 ROUTES[page]({"issues": issues, "open_issues": open_issues})
 
-# Chrome & Oak floating in the bottom-right corner, talking about the biggest open alert
-if not open_issues:
-    show_pets("happy", "I checked every order, return and invoice. All clear!", "Great, nothing needs action right now.")
-else:
-    top = max(open_issues, key=lambda i: i["impact"])
-    show_pets(
-        "worried" if len(open_issues) == 1 else "sad",
-        f"{len(open_issues)} alerts are open. Biggest: {len(top['rows'])} {top['name']}.",
-        f"I drafted the follow-ups. Open Alerts to send them to {top['notify']}.",
-    )
+# Chrome & Oak sitting in the bottom-right corner; they look worried while alerts are open
+show_pets("happy" if not open_issues else "worried" if len(open_issues) == 1 else "sad")

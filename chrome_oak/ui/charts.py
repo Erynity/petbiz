@@ -3,7 +3,7 @@
 import math
 
 from chrome_oak.ui.components import esc
-from chrome_oak.ui.theme import HL, INK, MUT, OAKD
+from chrome_oak.ui.theme import HL, INK, MUT, OAK, OAKD
 
 
 def _fmt(v, fmt):
@@ -26,6 +26,14 @@ def sparkline(values, color):
             f'stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>')
 
 
+def _nice_max(raw, n=4):
+    raw = raw or 1
+    step = raw / n
+    mag = 10 ** math.floor(math.log10(step))
+    step = next(m * mag for m in (1, 2, 2.5, 5, 10) if m * mag >= step)
+    return step, step * math.ceil(raw * 1.08 / step)
+
+
 def bar_chart_svg(chart):
     """Bar chart with value labels on top and highlighted bar(s).
 
@@ -39,7 +47,8 @@ def bar_chart_svg(chart):
     hl = chart.get("highlight") or []
     hl = {str(h) for h in ([hl] if isinstance(hl, str) else hl)}
     fmt = chart.get("format")
-    W, H, left, bottom, top = 560, 300, 44, 46, 26
+    W, H = chart.get("width", 560), chart.get("height", 300)
+    left, bottom, top = 54 if fmt == "dollar" else 44, 46, 26
     raw = float(s.max()) or 1
     step = raw / 4
     mag = 10 ** math.floor(math.log10(step))
@@ -65,3 +74,61 @@ def bar_chart_svg(chart):
         out.append(f'<text x="{(W + left) / 2}" y="{H - 6}" text-anchor="middle" font-size="12" font-weight="700" fill="#9AA0A8">{esc(chart["x_title"])}</text>')
     out.append("</svg>")
     return "".join(out)
+
+
+def hbar_chart_svg(chart):
+    """Horizontal bars: for long labels (e.g. product names). Biggest on top."""
+    s = chart["data"][chart["data"].columns[0]].sort_values(ascending=False)
+    hl = chart.get("highlight") or []
+    hl = {str(h) for h in ([hl] if isinstance(hl, str) else hl)}
+    fmt = chart.get("format")
+    row, left, right = 30, 170, 70
+    W, H = chart.get("width", 560), len(s) * row + 10
+    vmax = float(s.max()) or 1
+    out = [f'<svg viewBox="0 0 {W} {H}" width="100%" role="img" aria-label="{esc(chart["title"])}" style="display:block">']
+    for i, (label, v) in enumerate(s.items()):
+        y = 5 + i * row
+        w = (W - left - right) * float(v) / vmax
+        is_hl = str(label) in hl
+        out.append(f'<text x="{left - 10}" y="{y + row / 2 + 4:.1f}" text-anchor="end" font-size="13" font-weight="{800 if is_hl else 600}" fill="{OAKD if is_hl else MUT}">{esc(label)}</text>')
+        out.append(f'<rect x="{left}" y="{y + 5}" width="{max(w, 2):.1f}" height="{row - 10}" rx="3" fill="{HL if is_hl else "#C9CDD2"}"/>')
+        out.append(f'<text x="{left + w + 8:.1f}" y="{y + row / 2 + 4:.1f}" font-size="12" font-weight="800" fill="{INK}">{_fmt(float(v), fmt)}</text>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+def line_chart_svg(chart):
+    """Lines over an ordered x (e.g. quarters). One line per column, with a small legend."""
+    df = chart["data"]
+    fmt = chart.get("format")
+    colors = [OAK, "#9AA0A8", "#D4A84A"]
+    W, H = chart.get("width", 560), chart.get("height", 300)
+    left, right, bottom, top = 60, 20, 40, 40
+    step, vmax = _nice_max(float(df.max().max()))
+    n = len(df)
+    xs = [left + (W - left - right) * (i / max(n - 1, 1)) for i in range(n)]
+    y = lambda v: H - bottom - (H - bottom - top) * float(v) / vmax  # noqa: E731
+    out = [f'<svg viewBox="0 0 {W} {H}" width="100%" role="img" aria-label="{esc(chart["title"])}" style="display:block">']
+    ticks = int(round(vmax / step))
+    for k in range(ticks + 1):
+        yy = y(step * k)
+        out.append(f'<line x1="{left}" y1="{yy:.1f}" x2="{W - right}" y2="{yy:.1f}" stroke="#EEF0F2" stroke-width="1.5"/>')
+        out.append(f'<text x="{left - 8}" y="{yy + 4:.1f}" text-anchor="end" font-size="12" fill="{MUT}" font-weight="600">{_fmt(step * k, fmt)}</text>')
+    for x, label in zip(xs, df.index):
+        out.append(f'<text x="{x:.1f}" y="{H - bottom + 20}" text-anchor="middle" font-size="12" fill="{MUT}" font-weight="600">{esc(label)}</text>')
+    lx = left
+    for c, col in zip(colors, df.columns):
+        pts = " ".join(f"{x:.1f},{y(v):.1f}" for x, v in zip(xs, df[col]))
+        out.append(f'<polyline points="{pts}" fill="none" stroke="{c}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>')
+        out += [f'<circle cx="{x:.1f}" cy="{y(v):.1f}" r="5" fill="{c}" stroke="#FFFFFF" stroke-width="2"/>' for x, v in zip(xs, df[col])]
+        last = df[col].iloc[-1]
+        out.append(f'<text x="{xs[-1] - 8:.1f}" y="{y(last) - 12:.1f}" text-anchor="end" font-size="12" font-weight="800" fill="{INK}">{_fmt(float(last), fmt)}</text>')
+        out.append(f'<rect x="{lx}" y="10" width="14" height="4" rx="2" fill="{c}"/><text x="{lx + 20}" y="16" font-size="13" font-weight="700" fill="{INK}">{esc(col)}</text>')
+        lx += 30 + 8 * len(str(col))
+    out.append("</svg>")
+    return "".join(out)
+
+
+def chart_svg(chart):
+    """Pick the right drawing for a chart dict: kind "line", "hbar" or "bar" (default)."""
+    return {"line": line_chart_svg, "hbar": hbar_chart_svg}.get(chart.get("kind"), bar_chart_svg)(chart)

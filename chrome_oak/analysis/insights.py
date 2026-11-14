@@ -1,6 +1,9 @@
 """DETECT: the charts and the insights (what happened / why it matters / what to do)."""
 
+import pandas as pd
+
 from chrome_oak.analysis.metrics import margin_pct, money
+from chrome_oak.config import ASOF
 from chrome_oak.data.loader import load_data
 
 
@@ -89,3 +92,27 @@ def get_insights():
             "todo": "Send reminders automatically, oldest first, and hold new orders for customers over their credit limit.",
         },
     ]
+
+
+def refunds_chart():
+    _, orders, *_ = load_data()
+    refunds = orders.groupby("product")["refund"].sum().sort_values(ascending=False)
+    return {"title": "Refunds by product", "caption": "One product drives most of the refunds",
+            "data": refunds.to_frame("refunds"), "kind": "hbar", "format": "dollar", "highlight": refunds.index[0]}
+
+
+def aging_chart():
+    _, orders, *_ = load_data()
+    unpaid = orders[orders["payment_date"].isna()]
+    buckets = pd.cut(unpaid["days_overdue"], [-10_000, 0, 30, 60, 90, 10_000],
+                     labels=["Not due yet", "1–30", "31–60", "61–90", "90+"])
+    aging = unpaid.groupby(buckets, observed=False)["net"].sum()
+    return {"title": "Unpaid invoices by days late", "caption": f"Money still owed on {ASOF:%b %d, %Y}",
+            "data": aging.to_frame("unpaid"), "kind": "bar", "format": "dollar", "highlight": ["61–90", "90+"],
+            "x_title": "Days late"}
+
+
+def get_insight_charts(region=None):
+    """The charts behind each insight, in the same order as get_insights()."""
+    rep_chart, region_chart = get_charts(region)
+    return [[rep_chart, region_chart], [refunds_chart()], [aging_chart()]]
